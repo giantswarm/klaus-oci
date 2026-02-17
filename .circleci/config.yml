@@ -1,0 +1,15 @@
+version: 2.1
+
+orbs:
+  architect: giantswarm/architect@6.12.0
+
+workflows:
+  test:
+    jobs:
+      - architect/go-build:
+          context: architect
+          name: go-build
+          binary: klaus-oci
+          filters:
+            tags:
+              only: /^v.*/
