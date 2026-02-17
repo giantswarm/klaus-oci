@@ -52,6 +52,18 @@ func (p PluginReference) Ref() string {
 	return p.Repository
 }
 
+// ToolchainMeta holds metadata stored in the OCI config blob of a toolchain artifact.
+// Toolchain images are standard Docker/OCI container images used as the
+// execution environment for Klaus personalities.
+//
+// The struct is intentionally separate from PersonalityMeta to allow the two
+// artifact types to diverge independently (e.g. architecture, base-image fields).
+type ToolchainMeta struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Description string `json:"description,omitempty"`
+}
+
 // PullResult holds the result of a successful pull operation.
 type PullResult struct {
 	// Digest is the resolved manifest digest.

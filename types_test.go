@@ -96,6 +96,51 @@ func TestPersonalityMeta_JSON(t *testing.T) {
 	}
 }
 
+func TestToolchainMeta_JSON(t *testing.T) {
+	meta := ToolchainMeta{
+		Name:        "klaus-go",
+		Version:     "1.0.0",
+		Description: "Go toolchain for Klaus",
+	}
+
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded ToolchainMeta
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if decoded.Name != meta.Name {
+		t.Errorf("Name = %q, want %q", decoded.Name, meta.Name)
+	}
+	if decoded.Version != meta.Version {
+		t.Errorf("Version = %q, want %q", decoded.Version, meta.Version)
+	}
+	if decoded.Description != meta.Description {
+		t.Errorf("Description = %q, want %q", decoded.Description, meta.Description)
+	}
+}
+
+func TestToolchainMeta_JSON_OmitEmpty(t *testing.T) {
+	meta := ToolchainMeta{
+		Name:    "klaus-go",
+		Version: "1.0.0",
+	}
+
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	want := `{"name":"klaus-go","version":"1.0.0"}`
+	if string(data) != want {
+		t.Errorf("JSON = %s, want %s", data, want)
+	}
+}
+
 func TestPersonalitySpec_YAML(t *testing.T) {
 	input := `
 description: Giant Swarm SRE personality
