@@ -3,6 +3,7 @@ package oci
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -62,6 +63,38 @@ func (c *Client) Resolve(ctx context.Context, ref string) (string, error) {
 	}
 
 	return desc.Digest.String(), nil
+}
+
+// ListRepositories queries the OCI registry catalog to find all repositories
+// under the given base path. The base path format is
+// "registry.example.com/org/prefix" (e.g.,
+// "gsoci.azurecr.io/giantswarm/klaus-plugins"). Returns fully-qualified
+// repository references (e.g.,
+// "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base").
+func (c *Client) ListRepositories(ctx context.Context, registryBase string) ([]string, error) {
+	host, prefix := SplitRegistryBase(registryBase)
+
+	reg, err := remote.NewRegistry(host)
+	if err != nil {
+		return nil, fmt.Errorf("creating registry client for %s: %w", host, err)
+	}
+	reg.PlainHTTP = c.plainHTTP
+	reg.Client = c.authClient
+
+	var repos []string
+	err = reg.Repositories(ctx, "", func(batch []string) error {
+		for _, name := range batch {
+			if strings.HasPrefix(name, prefix) {
+				repos = append(repos, host+"/"+name)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing repositories in %s: %w", registryBase, err)
+	}
+
+	return repos, nil
 }
 
 // List returns all tags in the given repository.

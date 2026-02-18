@@ -2,6 +2,19 @@ package oci
 
 import "strings"
 
+// SplitRegistryBase splits a registry base path into the registry host and
+// the repository name prefix (with trailing slash). For example,
+// "gsoci.azurecr.io/giantswarm/klaus-plugins" returns
+// ("gsoci.azurecr.io", "giantswarm/klaus-plugins/").
+// If the base contains no slash, the prefix is empty (matches all repositories).
+func SplitRegistryBase(base string) (host, prefix string) {
+	idx := strings.Index(base, "/")
+	if idx < 0 {
+		return base, ""
+	}
+	return base[:idx], base[idx+1:] + "/"
+}
+
 // ShortName extracts the last segment of a repository path.
 // For example, "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform" returns "gs-platform".
 func ShortName(repository string) string {
