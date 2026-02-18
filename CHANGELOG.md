@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Client.ListRepositories` method for discovering OCI repositories under a registry base path via the catalog API, enabling remote artifact discovery without local cache.
+- `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.
 - Initial release of shared OCI types and ORAS client for Klaus artifacts.
 - Media type constants for plugin and personality artifacts.
 - `PluginMeta`, `PersonalityMeta`, and `PersonalitySpec` types.

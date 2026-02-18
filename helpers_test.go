@@ -2,6 +2,32 @@ package oci
 
 import "testing"
 
+func TestSplitRegistryBase(t *testing.T) {
+	tests := []struct {
+		base       string
+		wantHost   string
+		wantPrefix string
+	}{
+		{"gsoci.azurecr.io/giantswarm/klaus-plugins", "gsoci.azurecr.io", "giantswarm/klaus-plugins/"},
+		{"gsoci.azurecr.io/giantswarm/klaus-personalities", "gsoci.azurecr.io", "giantswarm/klaus-personalities/"},
+		{"gsoci.azurecr.io", "gsoci.azurecr.io", ""},
+		{"localhost:5000/plugins", "localhost:5000", "plugins/"},
+		{"example.com/org/team/artifacts", "example.com", "org/team/artifacts/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.base, func(t *testing.T) {
+			gotHost, gotPrefix := SplitRegistryBase(tt.base)
+			if gotHost != tt.wantHost {
+				t.Errorf("host = %q, want %q", gotHost, tt.wantHost)
+			}
+			if gotPrefix != tt.wantPrefix {
+				t.Errorf("prefix = %q, want %q", gotPrefix, tt.wantPrefix)
+			}
+		})
+	}
+}
+
 func TestShortName(t *testing.T) {
 	tests := []struct {
 		repository string
