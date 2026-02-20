@@ -1,6 +1,13 @@
 package oci
 
-import "context"
+import (
+	"context"
+	"slices"
+	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
+)
 
 // ListedArtifact holds metadata for an artifact discovered by ListArtifacts,
 // combining the resolved OCI reference with annotation-based metadata.
@@ -18,9 +25,9 @@ type ListedArtifact struct {
 // enriched metadata. This combines ListRepositories, ResolveLatestVersion,
 // and FetchArtifactInfo into a single high-level operation.
 //
-// Repositories are resolved sequentially. For large registries this may be
-// slow; use the lower-level methods with concurrent fetching if performance
-// is critical.
+// Repositories are resolved concurrently, bounded by the client's concurrency
+// limit (default 10, configurable via WithConcurrency). Results are sorted
+// alphabetically by repository name for deterministic output.
 //
 // Repositories that have no semver tags or whose manifests cannot be fetched
 // are silently skipped. Use the lower-level methods directly if you need
@@ -31,24 +38,44 @@ func (c *Client) ListArtifacts(ctx context.Context, registryBase string) ([]List
 		return nil, err
 	}
 
-	var artifacts []ListedArtifact
+	var (
+		mu        sync.Mutex
+		artifacts []ListedArtifact
+	)
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(c.concurrency)
+
 	for _, repo := range repos {
-		ref, err := c.ResolveLatestVersion(ctx, repo)
-		if err != nil {
-			continue
-		}
+		g.Go(func() error {
+			ref, err := c.ResolveLatestVersion(ctx, repo)
+			if err != nil {
+				return nil
+			}
 
-		info, err := c.FetchArtifactInfo(ctx, ref)
-		if err != nil {
-			continue
-		}
+			info, err := c.FetchArtifactInfo(ctx, ref)
+			if err != nil {
+				return nil
+			}
 
-		artifacts = append(artifacts, ListedArtifact{
-			Repository:   repo,
-			Reference:    ref,
-			ArtifactInfo: info,
+			mu.Lock()
+			artifacts = append(artifacts, ListedArtifact{
+				Repository:   repo,
+				Reference:    ref,
+				ArtifactInfo: info,
+			})
+			mu.Unlock()
+			return nil
 		})
 	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	slices.SortFunc(artifacts, func(a, b ListedArtifact) int {
+		return strings.Compare(a.Repository, b.Repository)
+	})
 
 	return artifacts, nil
 }

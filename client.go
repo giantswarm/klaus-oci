@@ -17,7 +17,10 @@ type Client struct {
 	authClient   *auth.Client
 	platformOS   string
 	platformArch string
+	concurrency  int
 }
+
+const defaultConcurrency = 10
 
 // ClientOption configures the OCI client.
 type ClientOption func(*Client)
@@ -26,6 +29,16 @@ type ClientOption func(*Client)
 // This is useful for local testing with insecure registries.
 func WithPlainHTTP(plain bool) ClientOption {
 	return func(c *Client) { c.plainHTTP = plain }
+}
+
+// WithConcurrency sets the maximum number of concurrent registry operations
+// for batch methods like ListArtifacts. Defaults to 10.
+func WithConcurrency(n int) ClientOption {
+	return func(c *Client) {
+		if n > 0 {
+			c.concurrency = n
+		}
+	}
 }
 
 // WithPlatform overrides the OS and architecture used when selecting a
@@ -54,6 +67,7 @@ func NewClient(opts ...ClientOption) *Client {
 		authClient:   newAuthClient(""),
 		platformOS:   runtime.GOOS,
 		platformArch: runtime.GOARCH,
+		concurrency:  defaultConcurrency,
 	}
 	for _, o := range opts {
 		o(c)
