@@ -1,6 +1,7 @@
 package oci
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"os"
@@ -120,5 +121,29 @@ func TestResolveCredential_FallbackAnonymous(t *testing.T) {
 	}
 	if cred != auth.EmptyCredential {
 		t.Errorf("expected empty credential, got %+v", cred)
+	}
+}
+
+func TestNewAuthClientFromFunc(t *testing.T) {
+	called := false
+	f := func(ctx context.Context, hostport string) (auth.Credential, error) {
+		called = true
+		return auth.Credential{Username: "k8s-user", Password: "k8s-pass"}, nil
+	}
+
+	client := newAuthClientFromFunc(f)
+	if client == nil {
+		t.Fatal("expected non-nil auth client")
+	}
+
+	cred, err := client.Credential(context.Background(), "registry.example.com")
+	if err != nil {
+		t.Fatalf("Credential: %v", err)
+	}
+	if !called {
+		t.Error("expected credential func to be called")
+	}
+	if cred.Username != "k8s-user" || cred.Password != "k8s-pass" {
+		t.Errorf("credential = %s:%s, want k8s-user:k8s-pass", cred.Username, cred.Password)
 	}
 }

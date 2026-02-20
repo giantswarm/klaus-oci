@@ -22,17 +22,23 @@ type dockerAuthEntry struct {
 	Auth string `json:"auth"` // base64(username:password)
 }
 
+// newAuthClientFromFunc creates an auth.Client that uses the given
+// credential function for authentication.
+func newAuthClientFromFunc(f auth.CredentialFunc) *auth.Client {
+	return &auth.Client{
+		Client:     http.DefaultClient,
+		Cache:      auth.NewCache(),
+		Credential: f,
+	}
+}
+
 // newAuthClient creates an auth.Client that resolves credentials from
 // Docker/Podman config files. If registryAuthEnv is non-empty, the named
 // environment variable is checked first for a base64-encoded Docker config JSON.
 func newAuthClient(registryAuthEnv string) *auth.Client {
-	return &auth.Client{
-		Client: http.DefaultClient,
-		Cache:  auth.NewCache(),
-		Credential: func(ctx context.Context, hostport string) (auth.Credential, error) {
-			return resolveCredential(registryAuthEnv, hostport)
-		},
-	}
+	return newAuthClientFromFunc(func(ctx context.Context, hostport string) (auth.Credential, error) {
+		return resolveCredential(registryAuthEnv, hostport)
+	})
 }
 
 // resolveCredential resolves registry credentials in priority order:

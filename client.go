@@ -35,6 +35,16 @@ func WithRegistryAuthEnv(envName string) ClientOption {
 	}
 }
 
+// WithCredentialFunc sets a custom credential resolution function,
+// replacing the default Docker/Podman config-based resolution.
+// This is useful for Kubernetes operators that resolve credentials
+// from imagePullSecrets at request time.
+func WithCredentialFunc(f auth.CredentialFunc) ClientOption {
+	return func(c *Client) {
+		c.authClient = newAuthClientFromFunc(f)
+	}
+}
+
 // NewClient creates a new OCI client for Klaus artifacts.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
