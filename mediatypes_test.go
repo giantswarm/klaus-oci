@@ -6,10 +6,10 @@ import (
 
 func TestArtifactKinds(t *testing.T) {
 	tests := []struct {
-		name             string
-		kind             ArtifactKind
-		wantConfigType   string
-		wantContentType  string
+		name            string
+		kind            ArtifactKind
+		wantConfigType  string
+		wantContentType string
 	}{
 		{
 			name:            "PluginArtifact has correct media types",
