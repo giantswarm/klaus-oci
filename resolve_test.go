@@ -29,8 +29,6 @@ func TestResolveArtifactRef(t *testing.T) {
 			"custom.registry.io/org/no-semver":                    {"latest", "main", "dev"},
 		},
 	}
-	ctx := context.Background()
-
 	tests := []struct {
 		name         string
 		ref          string
@@ -135,7 +133,7 @@ func TestResolveArtifactRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveArtifactRef(ctx, lister, tt.ref, tt.registryBase, tt.namePrefix)
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, tt.registryBase, tt.namePrefix)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("resolveArtifactRef() = %q, want error", got)

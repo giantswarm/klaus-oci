@@ -24,5 +24,8 @@ func ToolchainRegistryRef(name string) string {
 	if strings.HasPrefix(name, DefaultToolchainRegistry) {
 		return name
 	}
-	return DefaultToolchainRegistry + "/klaus-" + name
+	if !strings.HasPrefix(name, "klaus-") {
+		name = "klaus-" + name
+	}
+	return DefaultToolchainRegistry + "/" + name
 }

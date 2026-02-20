@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"runtime"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -72,7 +71,7 @@ func (c *Client) fetchManifest(ctx context.Context, ref string) (*ocispec.Manife
 			return nil, ocispec.Descriptor{}, fmt.Errorf("parsing index for %s: %w", ref, err)
 		}
 
-		platformDesc, err := selectPlatformForArch(index.Manifests, runtime.GOOS, runtime.GOARCH)
+		platformDesc, err := selectPlatformForArch(index.Manifests, c.platformOS, c.platformArch)
 		if err != nil {
 			return nil, ocispec.Descriptor{}, fmt.Errorf("selecting platform manifest for %s: %w", ref, err)
 		}

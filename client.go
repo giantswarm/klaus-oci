@@ -3,6 +3,7 @@ package oci
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 
 	"oras.land/oras-go/v2/registry/remote"
@@ -12,8 +13,10 @@ import (
 // Client is an ORAS-based client for interacting with OCI registries
 // that host Klaus artifacts (plugins and personalities).
 type Client struct {
-	plainHTTP  bool
-	authClient *auth.Client
+	plainHTTP    bool
+	authClient   *auth.Client
+	platformOS   string
+	platformArch string
 }
 
 // ClientOption configures the OCI client.
@@ -23,6 +26,16 @@ type ClientOption func(*Client)
 // This is useful for local testing with insecure registries.
 func WithPlainHTTP(plain bool) ClientOption {
 	return func(c *Client) { c.plainHTTP = plain }
+}
+
+// WithPlatform overrides the OS and architecture used when selecting a
+// platform-specific manifest from a multi-arch OCI index. By default the
+// client uses runtime.GOOS and runtime.GOARCH.
+func WithPlatform(os, arch string) ClientOption {
+	return func(c *Client) {
+		c.platformOS = os
+		c.platformArch = arch
+	}
 }
 
 // WithRegistryAuthEnv sets the environment variable name to check for
@@ -38,7 +51,9 @@ func WithRegistryAuthEnv(envName string) ClientOption {
 // NewClient creates a new OCI client for Klaus artifacts.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
-		authClient: newAuthClient(""),
+		authClient:   newAuthClient(""),
+		platformOS:   runtime.GOOS,
+		platformArch: runtime.GOARCH,
 	}
 	for _, o := range opts {
 		o(c)

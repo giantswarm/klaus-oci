@@ -95,17 +95,13 @@ func hasTagOrDigest(ref string) bool {
 }
 
 func hasDigest(ref string) bool {
-	return strings.Contains(ref, "@")
+	return strings.Contains(ref, "@sha256:") || strings.Contains(ref, "@sha512:")
 }
 
 func extractTag(ref string) string {
 	if hasDigest(ref) {
 		return ""
 	}
-	nameStart := strings.LastIndex(ref, "/")
-	tagIdx := strings.LastIndex(ref, ":")
-	if tagIdx > nameStart {
-		return ref[tagIdx+1:]
-	}
-	return ""
+	_, tag := SplitNameTag(ref)
+	return tag
 }

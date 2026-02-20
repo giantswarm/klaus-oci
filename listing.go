@@ -18,6 +18,10 @@ type ListedArtifact struct {
 // enriched metadata. This combines ListRepositories, ResolveLatestVersion,
 // and FetchArtifactInfo into a single high-level operation.
 //
+// Repositories are resolved sequentially. For large registries this may be
+// slow; use the lower-level methods with concurrent fetching if performance
+// is critical.
+//
 // Repositories that have no semver tags or whose manifests cannot be fetched
 // are silently skipped. Use the lower-level methods directly if you need
 // per-repository error handling.

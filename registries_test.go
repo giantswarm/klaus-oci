@@ -30,6 +30,7 @@ func TestToolchainRegistryRef(t *testing.T) {
 	}{
 		{"go", "gsoci.azurecr.io/giantswarm/klaus-go"},
 		{"python", "gsoci.azurecr.io/giantswarm/klaus-python"},
+		{"klaus-go", "gsoci.azurecr.io/giantswarm/klaus-go"},
 		{"gsoci.azurecr.io/giantswarm/klaus-go", "gsoci.azurecr.io/giantswarm/klaus-go"},
 	}
 
