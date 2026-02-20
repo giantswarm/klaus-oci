@@ -28,6 +28,18 @@ func (c *Client) FetchManifestAnnotations(ctx context.Context, ref string) (map[
 	return manifest.Annotations, nil
 }
 
+// FetchArtifactInfo fetches the OCI manifest for the given reference and
+// returns the Klaus artifact metadata extracted from its annotations.
+// This is a convenience method combining FetchManifestAnnotations and
+// ArtifactInfoFromAnnotations.
+func (c *Client) FetchArtifactInfo(ctx context.Context, ref string) (ArtifactInfo, error) {
+	annotations, err := c.FetchManifestAnnotations(ctx, ref)
+	if err != nil {
+		return ArtifactInfo{}, err
+	}
+	return ArtifactInfoFromAnnotations(annotations), nil
+}
+
 // fetchManifest resolves the reference, fetches the manifest, and returns
 // the parsed OCI manifest along with the resolved descriptor (which carries
 // the digest). If the top-level object is an OCI index (multi-arch), a
@@ -60,7 +72,7 @@ func (c *Client) fetchManifest(ctx context.Context, ref string) (*ocispec.Manife
 			return nil, ocispec.Descriptor{}, fmt.Errorf("parsing index for %s: %w", ref, err)
 		}
 
-		platformDesc, err := selectPlatform(index.Manifests)
+		platformDesc, err := selectPlatformForArch(index.Manifests, runtime.GOOS, runtime.GOARCH)
 		if err != nil {
 			return nil, ocispec.Descriptor{}, fmt.Errorf("selecting platform manifest for %s: %w", ref, err)
 		}
@@ -86,12 +98,9 @@ func (c *Client) fetchManifest(ctx context.Context, ref string) (*ocispec.Manife
 	}
 }
 
-// selectPlatform picks the manifest descriptor matching the current
-// runtime OS/architecture from a list of index manifests.
-func selectPlatform(manifests []ocispec.Descriptor) (ocispec.Descriptor, error) {
-	wantOS := runtime.GOOS
-	wantArch := runtime.GOARCH
-
+// selectPlatformForArch picks the manifest descriptor matching the requested
+// OS/architecture from a list of index manifests.
+func selectPlatformForArch(manifests []ocispec.Descriptor, wantOS, wantArch string) (ocispec.Descriptor, error) {
 	for _, m := range manifests {
 		if m.Platform != nil && m.Platform.OS == wantOS && m.Platform.Architecture == wantArch {
 			return m, nil

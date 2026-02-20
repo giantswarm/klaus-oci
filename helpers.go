@@ -58,14 +58,6 @@ func LatestSemverTag(tags []string) string {
 	return bestTag
 }
 
-// ShortToolchainName extracts the toolchain name from a full repository path,
-// stripping both the registry prefix and the "klaus-" convention.
-// For example, "gsoci.azurecr.io/giantswarm/klaus-go" returns "go".
-func ShortToolchainName(repository string) string {
-	name := ShortName(repository)
-	return strings.TrimPrefix(name, "klaus-")
-}
-
 // SplitNameTag splits "name:tag" into name and tag. If no tag-position colon
 // is present, tag is empty. Port-only colons (e.g. "localhost:5000/repo") are
 // not treated as tag separators.
@@ -91,16 +83,6 @@ func RepositoryFromRef(ref string) string {
 		return ref[:idx]
 	}
 	return ref
-}
-
-// ToolchainRegistryRef returns the full registry reference for a toolchain
-// image name. Toolchains use the pattern gsoci.azurecr.io/giantswarm/klaus-<name>.
-// If the name already starts with the toolchain registry base, it is returned as-is.
-func ToolchainRegistryRef(name string) string {
-	if strings.HasPrefix(name, DefaultToolchainRegistry) {
-		return name
-	}
-	return DefaultToolchainRegistry + "/klaus-" + name
 }
 
 func hasTagOrDigest(ref string) bool {

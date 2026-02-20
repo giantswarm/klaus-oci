@@ -1,22 +1,23 @@
 package oci
 
 import (
-	"runtime"
 	"testing"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func TestSelectPlatform(t *testing.T) {
+func TestSelectPlatformForArch(t *testing.T) {
 	tests := []struct {
-		name      string
-		manifests []ocispec.Descriptor
-		wantArch  string
-		wantOS    string
-		wantErr   bool
+		name       string
+		manifests  []ocispec.Descriptor
+		selectOS   string
+		selectArch string
+		wantOS     string
+		wantArch   string
+		wantErr    bool
 	}{
 		{
-			name: "exact match for current runtime",
+			name: "exact match for requested platform",
 			manifests: []ocispec.Descriptor{
 				{
 					MediaType: ocispec.MediaTypeImageManifest,
@@ -24,11 +25,30 @@ func TestSelectPlatform(t *testing.T) {
 				},
 				{
 					MediaType: ocispec.MediaTypeImageManifest,
-					Platform:  &ocispec.Platform{OS: runtime.GOOS, Architecture: runtime.GOARCH},
+					Platform:  &ocispec.Platform{OS: "linux", Architecture: "amd64"},
 				},
 			},
-			wantOS:   runtime.GOOS,
-			wantArch: runtime.GOARCH,
+			selectOS:   "linux",
+			selectArch: "amd64",
+			wantOS:     "linux",
+			wantArch:   "amd64",
+		},
+		{
+			name: "selects darwin/arm64 from mixed list",
+			manifests: []ocispec.Descriptor{
+				{
+					MediaType: ocispec.MediaTypeImageManifest,
+					Platform:  &ocispec.Platform{OS: "linux", Architecture: "amd64"},
+				},
+				{
+					MediaType: ocispec.MediaTypeImageManifest,
+					Platform:  &ocispec.Platform{OS: "darwin", Architecture: "arm64"},
+				},
+			},
+			selectOS:   "darwin",
+			selectArch: "arm64",
+			wantOS:     "darwin",
+			wantArch:   "arm64",
 		},
 		{
 			name: "falls back to first image manifest when no platform match",
@@ -42,8 +62,10 @@ func TestSelectPlatform(t *testing.T) {
 					Platform:  &ocispec.Platform{OS: "other", Architecture: "other"},
 				},
 			},
-			wantOS:   "other",
-			wantArch: "other",
+			selectOS:   "nonexistent",
+			selectArch: "nonexistent",
+			wantOS:     "other",
+			wantArch:   "other",
 		},
 		{
 			name: "falls back to docker manifest when no platform match",
@@ -53,8 +75,10 @@ func TestSelectPlatform(t *testing.T) {
 					Platform:  &ocispec.Platform{OS: "linux", Architecture: "amd64"},
 				},
 			},
-			wantOS:   "linux",
-			wantArch: "amd64",
+			selectOS:   "darwin",
+			selectArch: "arm64",
+			wantOS:     "linux",
+			wantArch:   "amd64",
 		},
 		{
 			name: "falls back to first entry when nothing matches",
@@ -64,30 +88,34 @@ func TestSelectPlatform(t *testing.T) {
 					Platform:  &ocispec.Platform{OS: "plan9", Architecture: "386"},
 				},
 			},
-			wantOS:   "plan9",
-			wantArch: "386",
+			selectOS:   "linux",
+			selectArch: "amd64",
+			wantOS:     "plan9",
+			wantArch:   "386",
 		},
 		{
-			name:      "empty manifests returns error",
-			manifests: []ocispec.Descriptor{},
-			wantErr:   true,
+			name:       "empty manifests returns error",
+			manifests:  []ocispec.Descriptor{},
+			selectOS:   "linux",
+			selectArch: "amd64",
+			wantErr:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := selectPlatform(tt.manifests)
+			got, err := selectPlatformForArch(tt.manifests, tt.selectOS, tt.selectArch)
 			if tt.wantErr {
 				if err == nil {
-					t.Fatal("selectPlatform() expected error, got nil")
+					t.Fatal("selectPlatformForArch() expected error, got nil")
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("selectPlatform() error = %v", err)
+				t.Fatalf("selectPlatformForArch() error = %v", err)
 			}
 			if got.Platform == nil {
-				t.Fatal("selectPlatform() returned descriptor without platform")
+				t.Fatal("selectPlatformForArch() returned descriptor without platform")
 			}
 			if got.Platform.OS != tt.wantOS {
 				t.Errorf("OS = %q, want %q", got.Platform.OS, tt.wantOS)

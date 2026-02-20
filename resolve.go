@@ -32,6 +32,30 @@ func (c *Client) ResolveArtifactRef(ctx context.Context, ref, registryBase, name
 	return resolveArtifactRef(ctx, c, ref, registryBase, namePrefix)
 }
 
+// ResolveToolchainRef resolves a toolchain short name or OCI reference to a
+// fully-qualified reference with its latest semver tag.
+// Short names (e.g. "go") are expanded using the default toolchain registry
+// and "klaus-" prefix (e.g. "gsoci.azurecr.io/giantswarm/klaus-go:v1.0.0").
+func (c *Client) ResolveToolchainRef(ctx context.Context, ref string) (string, error) {
+	return resolveArtifactRef(ctx, c, ref, DefaultToolchainRegistry, "klaus-")
+}
+
+// ResolvePluginRef resolves a plugin short name or OCI reference to a
+// fully-qualified reference with its latest semver tag.
+// Short names (e.g. "gs-ae") are expanded using the default plugin registry
+// (e.g. "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.3").
+func (c *Client) ResolvePluginRef(ctx context.Context, ref string) (string, error) {
+	return resolveArtifactRef(ctx, c, ref, DefaultPluginRegistry, "")
+}
+
+// ResolvePersonalityRef resolves a personality short name or OCI reference to a
+// fully-qualified reference with its latest semver tag.
+// Short names (e.g. "sre") are expanded using the default personality registry
+// (e.g. "gsoci.azurecr.io/giantswarm/klaus-personalities/sre:v0.2.0").
+func (c *Client) ResolvePersonalityRef(ctx context.Context, ref string) (string, error) {
+	return resolveArtifactRef(ctx, c, ref, DefaultPersonalityRegistry, "")
+}
+
 // ResolvePluginRefs resolves a slice of PluginReference entries, replacing
 // "latest" or empty tags with the actual latest semver tag from the registry.
 // Plugins with non-"latest" tags or digests are left unchanged.
@@ -42,7 +66,7 @@ func (c *Client) ResolvePluginRefs(ctx context.Context, plugins []PluginReferenc
 func resolveArtifactRef(ctx context.Context, lister tagLister, ref, registryBase, namePrefix string) (string, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return ref, nil
+		return "", fmt.Errorf("empty artifact reference")
 	}
 
 	if strings.Contains(ref, "/") {

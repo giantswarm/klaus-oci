@@ -40,10 +40,16 @@ func TestResolveArtifactRef(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name:         "empty ref",
+			name:         "empty ref returns error",
 			ref:          "",
 			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "",
+			wantErr:      true,
+		},
+		{
+			name:         "whitespace-only ref returns error",
+			ref:          "   ",
+			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
+			wantErr:      true,
 		},
 		{
 			name:         "short name with explicit tag",
@@ -206,6 +212,159 @@ func TestResolvePluginRefsResolvesLatest(t *testing.T) {
 	}
 	if resolved[1].Tag != "v0.5.0" {
 		t.Errorf("plugin-b tag = %q, want v0.5.0", resolved[1].Tag)
+	}
+}
+
+func TestResolveToolchainRef(t *testing.T) {
+	lister := &mockTagLister{
+		tags: map[string][]string{
+			"gsoci.azurecr.io/giantswarm/klaus-go":     {"v1.0.0", "v1.1.0"},
+			"gsoci.azurecr.io/giantswarm/klaus-python": {"v0.5.0"},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		ref     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "short name",
+			ref:  "go",
+			want: "gsoci.azurecr.io/giantswarm/klaus-go:v1.1.0",
+		},
+		{
+			name: "short name with prefix already present",
+			ref:  "klaus-python",
+			want: "gsoci.azurecr.io/giantswarm/klaus-python:v0.5.0",
+		},
+		{
+			name: "short name with explicit tag",
+			ref:  "go:v1.0.0",
+			want: "gsoci.azurecr.io/giantswarm/klaus-go:v1.0.0",
+		},
+		{
+			name:    "unknown short name",
+			ref:     "rust",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultToolchainRegistry, "klaus-")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ResolveToolchainRef() = %q, want error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ResolveToolchainRef() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("ResolveToolchainRef() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolvePluginRef(t *testing.T) {
+	lister := &mockTagLister{
+		tags: map[string][]string{
+			"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae": {"v0.0.1", "v0.0.3", "v0.0.2"},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		ref     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "short name resolves latest",
+			ref:  "gs-ae",
+			want: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.3",
+		},
+		{
+			name: "short name with explicit tag",
+			ref:  "gs-ae:v0.0.2",
+			want: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.2",
+		},
+		{
+			name:    "unknown plugin",
+			ref:     "nonexistent",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultPluginRegistry, "")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ResolvePluginRef() = %q, want error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ResolvePluginRef() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("ResolvePluginRef() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolvePersonalityRef(t *testing.T) {
+	lister := &mockTagLister{
+		tags: map[string][]string{
+			"gsoci.azurecr.io/giantswarm/klaus-personalities/sre": {"v0.1.0", "v0.2.0"},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		ref     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "short name resolves latest",
+			ref:  "sre",
+			want: "gsoci.azurecr.io/giantswarm/klaus-personalities/sre:v0.2.0",
+		},
+		{
+			name: "short name with explicit tag",
+			ref:  "sre:v0.1.0",
+			want: "gsoci.azurecr.io/giantswarm/klaus-personalities/sre:v0.1.0",
+		},
+		{
+			name:    "unknown personality",
+			ref:     "nonexistent",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultPersonalityRegistry, "")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ResolvePersonalityRef() = %q, want error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ResolvePersonalityRef() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("ResolvePersonalityRef() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
