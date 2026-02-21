@@ -9,15 +9,6 @@ const (
 	DefaultToolchainRegistry   = "gsoci.azurecr.io/giantswarm/klaus-toolchains"
 )
 
-// ShortToolchainName extracts the toolchain name from a full repository path.
-// For example, "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" returns "go".
-//
-// Deprecated: ShortToolchainName is a direct alias for ShortName. Prefer
-// ShortName for new code.
-func ShortToolchainName(repository string) string {
-	return ShortName(repository)
-}
-
 // ToolchainRegistryRef returns the full registry reference for a toolchain
 // image name. Toolchains use the pattern
 // gsoci.azurecr.io/giantswarm/klaus-toolchains/<name>.

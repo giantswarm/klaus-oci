@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move toolchain images to `giantswarm/klaus-toolchains/<name>` sub-namespace (e.g. `gsoci.azurecr.io/giantswarm/klaus-toolchains/go`), matching the existing plugin and personality patterns. This narrows `ListRepositories` from scanning the entire `giantswarm/` catalog (921 repos, ~30s cold) to just the `klaus-toolchains/` sub-namespace.
 - `DefaultToolchainRegistry` changed from `gsoci.azurecr.io/giantswarm` to `gsoci.azurecr.io/giantswarm/klaus-toolchains`.
-- `ShortToolchainName` deprecated in favour of `ShortName` (now a direct alias).
 - `ToolchainRegistryRef` no longer prepends `klaus-` to short names.
 - `ResolveArtifactRef` signature simplified: removed the `namePrefix` parameter (no callers use it after the sub-namespace migration).
 - `ResolveToolchainRef` no longer uses `"klaus-"` name prefix.
@@ -25,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FetchManifestAnnotations`, `FetchArtifactInfo` -- no longer needed without annotation-based identification.
 - `WithAnnotations` option for `ListArtifacts` -- annotation fetching removed entirely.
 - `WithPlatform` client option -- only used by the removed manifest annotation path.
+- `ShortToolchainName` -- use `ShortName` instead.
 
 ### Added
 
