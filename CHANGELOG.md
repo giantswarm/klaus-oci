@@ -17,13 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ResolveToolchainRef` no longer uses `"klaus-"` name prefix.
 
 - `ListRepositories` now uses the catalog `last` parameter to seek past repositories that sort before the target prefix and stops early once past it, avoiding full catalog scans on large registries (921 repos down to 1-2 pages).
-- `ListArtifacts` no longer fetches manifest annotations by default, skipping 2-3 HTTP round trips per artifact. Pass `WithAnnotations()` to restore the previous behaviour.
-- `ListArtifacts` now accepts variadic `ListOption` arguments for filtering and annotation control.
+- `ListArtifacts` now accepts variadic `ListOption` arguments for filtering control.
+
+### Removed
+
+- `ArtifactInfo`, `ArtifactInfoFromAnnotations`, `AnnotationKlausType`, `AnnotationKlausName`, `AnnotationKlausVersion`, `TypePlugin`, `TypePersonality`, `TypeToolchain` -- annotation-based metadata is redundant now that each artifact type has its own sub-namespace. Type, name, and version are derivable from the repository path and tag.
+- `FetchManifestAnnotations`, `FetchArtifactInfo` -- no longer needed without annotation-based identification.
+- `WithAnnotations` option for `ListArtifacts` -- annotation fetching removed entirely.
+- `WithPlatform` client option -- only used by the removed manifest annotation path.
 
 ### Added
 
 - `WithFilter` option for `ListArtifacts` to skip repositories before resolution, avoiding expensive tag listing and manifest fetches for non-matching repos.
-- `WithAnnotations` option for `ListArtifacts` to opt into manifest annotation fetching when enriched metadata is needed.
 - `Client.ListRepositories` method for discovering OCI repositories under a registry base path via the catalog API, enabling remote artifact discovery without local cache.
 - `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.
 - Initial release of shared OCI types and ORAS client for Klaus artifacts.
@@ -35,7 +40,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable credential resolution from Docker/Podman configs and environment variables.
 - Digest-based caching to skip redundant pulls.
 - Secure tar.gz extraction with path traversal protection and file size limits.
-- Shared Klaus annotation key constants (`AnnotationKlausType`, `AnnotationKlausName`, `AnnotationKlausVersion`) for uniform cross-type identification on OCI manifests.
-- Type value constants (`TypePlugin`, `TypePersonality`, `TypeToolchain`) for `AnnotationKlausType`.
 - `ToolchainMeta` type for toolchain image metadata.
-- `ArtifactInfo` type and `ArtifactInfoFromAnnotations` helper for extracting Klaus metadata from OCI manifest annotations.
