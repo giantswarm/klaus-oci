@@ -22,14 +22,14 @@ func (c *Client) ResolveLatestVersion(ctx context.Context, repository string) (s
 // fully-qualified reference with its latest semver tag from the registry.
 //
 // If the ref already has a tag other than "latest" (or a digest), it is
-// returned as-is. Short names (no "/") are expanded using registryBase and
-// namePrefix (e.g. "go" with prefix "klaus-" becomes
-// "gsoci.azurecr.io/giantswarm/klaus-go:v1.0.0").
+// returned as-is. Short names (no "/") are expanded using registryBase
+// (e.g. "go" with base "gsoci.azurecr.io/giantswarm/klaus-toolchains"
+// becomes "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0").
 //
 // When no tag is provided or the tag is "latest", the registry is queried
 // for all tags and the highest semver tag is selected.
-func (c *Client) ResolveArtifactRef(ctx context.Context, ref, registryBase, namePrefix string) (string, error) {
-	return resolveArtifactRef(ctx, c, ref, registryBase, namePrefix)
+func (c *Client) ResolveArtifactRef(ctx context.Context, ref, registryBase string) (string, error) {
+	return resolveArtifactRef(ctx, c, ref, registryBase)
 }
 
 // ResolveToolchainRef resolves a toolchain short name or OCI reference to a
@@ -37,7 +37,7 @@ func (c *Client) ResolveArtifactRef(ctx context.Context, ref, registryBase, name
 // Short names (e.g. "go") are expanded using the default toolchain registry
 // (e.g. "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0").
 func (c *Client) ResolveToolchainRef(ctx context.Context, ref string) (string, error) {
-	return resolveArtifactRef(ctx, c, ref, DefaultToolchainRegistry, "")
+	return resolveArtifactRef(ctx, c, ref, DefaultToolchainRegistry)
 }
 
 // ResolvePluginRef resolves a plugin short name or OCI reference to a
@@ -45,7 +45,7 @@ func (c *Client) ResolveToolchainRef(ctx context.Context, ref string) (string, e
 // Short names (e.g. "gs-ae") are expanded using the default plugin registry
 // (e.g. "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.3").
 func (c *Client) ResolvePluginRef(ctx context.Context, ref string) (string, error) {
-	return resolveArtifactRef(ctx, c, ref, DefaultPluginRegistry, "")
+	return resolveArtifactRef(ctx, c, ref, DefaultPluginRegistry)
 }
 
 // ResolvePersonalityRef resolves a personality short name or OCI reference to a
@@ -53,7 +53,7 @@ func (c *Client) ResolvePluginRef(ctx context.Context, ref string) (string, erro
 // Short names (e.g. "sre") are expanded using the default personality registry
 // (e.g. "gsoci.azurecr.io/giantswarm/klaus-personalities/sre:v0.2.0").
 func (c *Client) ResolvePersonalityRef(ctx context.Context, ref string) (string, error) {
-	return resolveArtifactRef(ctx, c, ref, DefaultPersonalityRegistry, "")
+	return resolveArtifactRef(ctx, c, ref, DefaultPersonalityRegistry)
 }
 
 // ResolvePluginRefs resolves a slice of PluginReference entries, replacing
@@ -63,7 +63,7 @@ func (c *Client) ResolvePluginRefs(ctx context.Context, plugins []PluginReferenc
 	return resolvePluginRefs(ctx, c, plugins)
 }
 
-func resolveArtifactRef(ctx context.Context, lister tagLister, ref, registryBase, namePrefix string) (string, error) {
+func resolveArtifactRef(ctx context.Context, lister tagLister, ref, registryBase string) (string, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return "", fmt.Errorf("empty artifact reference")
@@ -85,9 +85,6 @@ func resolveArtifactRef(ctx context.Context, lister tagLister, ref, registryBase
 	}
 
 	name, tag := SplitNameTag(ref)
-	if namePrefix != "" && !strings.HasPrefix(name, namePrefix) {
-		name = namePrefix + name
-	}
 	fullRepo := registryBase + "/" + name
 
 	if tag != "" && tag != "latest" {

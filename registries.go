@@ -11,6 +11,9 @@ const (
 
 // ShortToolchainName extracts the toolchain name from a full repository path.
 // For example, "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" returns "go".
+//
+// Deprecated: ShortToolchainName is a direct alias for ShortName. Prefer
+// ShortName for new code.
 func ShortToolchainName(repository string) string {
 	return ShortName(repository)
 }

@@ -144,7 +144,7 @@ func TestToolchainMeta_JSON_OmitEmpty(t *testing.T) {
 func TestPersonalitySpec_YAML(t *testing.T) {
 	input := `
 description: Giant Swarm SRE personality
-image: gsoci.azurecr.io/giantswarm/klaus-go:1.0.0
+image: gsoci.azurecr.io/giantswarm/klaus-toolchains/go:1.0.0
 plugins:
   - repository: gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform
     tag: v1.2.0
@@ -160,7 +160,7 @@ plugins:
 	if spec.Description != "Giant Swarm SRE personality" {
 		t.Errorf("Description = %q, want %q", spec.Description, "Giant Swarm SRE personality")
 	}
-	if spec.Image != "gsoci.azurecr.io/giantswarm/klaus-go:1.0.0" {
+	if spec.Image != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:1.0.0" {
 		t.Errorf("Image = %q", spec.Image)
 	}
 	if len(spec.Plugins) != 2 {

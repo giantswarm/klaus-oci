@@ -12,10 +12,10 @@ import (
 // ListedArtifact holds metadata for an artifact discovered by ListArtifacts,
 // combining the resolved OCI reference with annotation-based metadata.
 type ListedArtifact struct {
-	// Repository is the full OCI repository path (e.g. "gsoci.azurecr.io/giantswarm/klaus-go").
+	// Repository is the full OCI repository path (e.g. "gsoci.azurecr.io/giantswarm/klaus-toolchains/go").
 	Repository string
 	// Reference is the resolved OCI reference including the latest semver tag
-	// (e.g. "gsoci.azurecr.io/giantswarm/klaus-go:v1.0.0").
+	// (e.g. "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0").
 	Reference string
 	ArtifactInfo
 }
