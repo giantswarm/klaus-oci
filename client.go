@@ -100,6 +100,11 @@ func (c *Client) Resolve(ctx context.Context, ref string) (string, error) {
 // "gsoci.azurecr.io/giantswarm/klaus-plugins"). Returns fully-qualified
 // repository references (e.g.,
 // "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base").
+//
+// The catalog is queried using a seek position to skip repositories that
+// sort before the prefix, and enumeration stops as soon as a page is
+// encountered where all entries sort after the prefix. This makes the
+// operation significantly faster on large registries.
 func (c *Client) ListRepositories(ctx context.Context, registryBase string) ([]string, error) {
 	host, prefix := SplitRegistryBase(registryBase)
 
@@ -110,21 +115,35 @@ func (c *Client) ListRepositories(ctx context.Context, registryBase string) ([]s
 	reg.PlainHTTP = c.plainHTTP
 	reg.Client = c.authClient
 
+	// Seek past repositories that sort before our prefix by using the
+	// catalog's `last` parameter. We trim the trailing "/" from the prefix
+	// so the enumeration begins just before the first matching repo (the
+	// catalog returns entries strictly after the `last` value).
+	seekPos := strings.TrimSuffix(prefix, "/")
+
 	var repos []string
-	err = reg.Repositories(ctx, "", func(batch []string) error {
+	err = reg.Repositories(ctx, seekPos, func(batch []string) error {
 		for _, name := range batch {
-			if strings.HasPrefix(name, prefix) {
-				repos = append(repos, host+"/"+name)
+			if !strings.HasPrefix(name, prefix) {
+				if name > prefix {
+					return errStopIteration
+				}
+				continue
 			}
+			repos = append(repos, host+"/"+name)
 		}
 		return nil
 	})
-	if err != nil {
+	if err != nil && err != errStopIteration {
 		return nil, fmt.Errorf("listing repositories in %s: %w", registryBase, err)
 	}
 
 	return repos, nil
 }
+
+// errStopIteration is a sentinel used to break out of paginated catalog
+// enumeration once all matching repositories have been found.
+var errStopIteration = fmt.Errorf("stop iteration")
 
 // List returns all tags in the given repository.
 func (c *Client) List(ctx context.Context, repository string) ([]string, error) {

@@ -7,23 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- `Client.ResolveToolchainRef`, `Client.ResolvePluginRef`, and `Client.ResolvePersonalityRef` convenience methods for resolving short names to fully-qualified OCI references using the default registry for each artifact type.
-- `Client.ListArtifacts` method for discovering all artifacts under a registry base path with resolved versions and annotation metadata in a single call.
-- `Client.FetchArtifactInfo` convenience method for fetching Klaus artifact metadata from manifest annotations in a single call.
-- `Client.ResolveLatestVersion` method for resolving a repository to its highest semver-tagged reference.
-- `Client.ResolveArtifactRef` method for resolving short names and `:latest` tags to fully-qualified OCI references with semver resolution.
-- `Client.ResolvePluginRefs` method for batch-resolving `[]PluginReference` entries to their latest semver tags.
-- `Client.FetchManifestAnnotations` method for reading OCI manifest annotations without pulling content layers. Supports multi-arch (index) manifests by selecting the current runtime platform automatically.
-- `ListedArtifact` type combining resolved OCI reference with annotation-based metadata for listing operations.
-- `LatestSemverTag` helper for selecting the highest semver tag from a tag list.
-- `ShortToolchainName`, `SplitNameTag`, `RepositoryFromRef`, and `ToolchainRegistryRef` helper functions for OCI reference manipulation.
-- `DefaultPluginRegistry`, `DefaultPersonalityRegistry`, and `DefaultToolchainRegistry` constants for standard Klaus registry base paths.
-
 ### Changed
 
-- `Client.ResolveArtifactRef` now returns an error for empty references instead of silently returning an empty string.
+- `ListRepositories` now uses the catalog `last` parameter to seek past repositories that sort before the target prefix and stops early once past it, avoiding full catalog scans on large registries (921 repos down to 1-2 pages).
+- `ListArtifacts` no longer fetches manifest annotations by default, skipping 2-3 HTTP round trips per artifact. Pass `WithAnnotations()` to restore the previous behaviour.
+- `ListArtifacts` now accepts variadic `ListOption` arguments for filtering and annotation control.
+
+### Added
+
+- `WithFilter` option for `ListArtifacts` to skip repositories before resolution, avoiding expensive tag listing and manifest fetches for non-matching repos.
+- `WithAnnotations` option for `ListArtifacts` to opt into manifest annotation fetching when enriched metadata is needed.
+
 - `Client.ListRepositories` method for discovering OCI repositories under a registry base path via the catalog API, enabling remote artifact discovery without local cache.
 - `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.
 - Initial release of shared OCI types and ORAS client for Klaus artifacts.
