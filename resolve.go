@@ -35,9 +35,9 @@ func (c *Client) ResolveArtifactRef(ctx context.Context, ref, registryBase, name
 // ResolveToolchainRef resolves a toolchain short name or OCI reference to a
 // fully-qualified reference with its latest semver tag.
 // Short names (e.g. "go") are expanded using the default toolchain registry
-// and "klaus-" prefix (e.g. "gsoci.azurecr.io/giantswarm/klaus-go:v1.0.0").
+// (e.g. "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0").
 func (c *Client) ResolveToolchainRef(ctx context.Context, ref string) (string, error) {
-	return resolveArtifactRef(ctx, c, ref, DefaultToolchainRegistry, "klaus-")
+	return resolveArtifactRef(ctx, c, ref, DefaultToolchainRegistry, "")
 }
 
 // ResolvePluginRef resolves a plugin short name or OCI reference to a

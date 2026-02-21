@@ -7,11 +7,11 @@ func TestShortToolchainName(t *testing.T) {
 		repository string
 		want       string
 	}{
-		{"gsoci.azurecr.io/giantswarm/klaus-go", "go"},
-		{"gsoci.azurecr.io/giantswarm/klaus-python", "python"},
-		{"gsoci.azurecr.io/giantswarm/klaus-git", "git"},
+		{"gsoci.azurecr.io/giantswarm/klaus-toolchains/go", "go"},
+		{"gsoci.azurecr.io/giantswarm/klaus-toolchains/python", "python"},
+		{"gsoci.azurecr.io/giantswarm/klaus-toolchains/git", "git"},
+		{"gsoci.azurecr.io/giantswarm/klaus-toolchains/git-debian", "git-debian"},
 		{"registry.example.com/other-image", "other-image"},
-		{"klaus-go", "go"},
 	}
 
 	for _, tt := range tests {
@@ -28,10 +28,10 @@ func TestToolchainRegistryRef(t *testing.T) {
 		name string
 		want string
 	}{
-		{"go", "gsoci.azurecr.io/giantswarm/klaus-go"},
-		{"python", "gsoci.azurecr.io/giantswarm/klaus-python"},
-		{"klaus-go", "gsoci.azurecr.io/giantswarm/klaus-go"},
-		{"gsoci.azurecr.io/giantswarm/klaus-go", "gsoci.azurecr.io/giantswarm/klaus-go"},
+		{"go", "gsoci.azurecr.io/giantswarm/klaus-toolchains/go"},
+		{"python", "gsoci.azurecr.io/giantswarm/klaus-toolchains/python"},
+		{"git-debian", "gsoci.azurecr.io/giantswarm/klaus-toolchains/git-debian"},
+		{"gsoci.azurecr.io/giantswarm/klaus-toolchains/go", "gsoci.azurecr.io/giantswarm/klaus-toolchains/go"},
 	}
 
 	for _, tt := range tests {

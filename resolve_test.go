@@ -216,8 +216,8 @@ func TestResolvePluginRefsResolvesLatest(t *testing.T) {
 func TestResolveToolchainRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
-			"gsoci.azurecr.io/giantswarm/klaus-go":     {"v1.0.0", "v1.1.0"},
-			"gsoci.azurecr.io/giantswarm/klaus-python": {"v0.5.0"},
+			"gsoci.azurecr.io/giantswarm/klaus-toolchains/go":     {"v1.0.0", "v1.1.0"},
+			"gsoci.azurecr.io/giantswarm/klaus-toolchains/python": {"v0.5.0"},
 		},
 	}
 
@@ -230,17 +230,12 @@ func TestResolveToolchainRef(t *testing.T) {
 		{
 			name: "short name",
 			ref:  "go",
-			want: "gsoci.azurecr.io/giantswarm/klaus-go:v1.1.0",
-		},
-		{
-			name: "short name with prefix already present",
-			ref:  "klaus-python",
-			want: "gsoci.azurecr.io/giantswarm/klaus-python:v0.5.0",
+			want: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.1.0",
 		},
 		{
 			name: "short name with explicit tag",
 			ref:  "go:v1.0.0",
-			want: "gsoci.azurecr.io/giantswarm/klaus-go:v1.0.0",
+			want: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0",
 		},
 		{
 			name:    "unknown short name",
@@ -251,7 +246,7 @@ func TestResolveToolchainRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultToolchainRegistry, "klaus-")
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultToolchainRegistry, "")
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("ResolveToolchainRef() = %q, want error", got)

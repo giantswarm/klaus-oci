@@ -30,10 +30,7 @@ type listConfig struct {
 
 // WithFilter sets a predicate that is applied to each discovered repository
 // before any network-intensive resolution. Only repositories for which fn
-// returns true will be resolved. This is significantly faster than filtering
-// after ListArtifacts returns when the registry base contains many unrelated
-// repositories (e.g. using the broad "gsoci.azurecr.io/giantswarm" base for
-// toolchains).
+// returns true will be resolved.
 func WithFilter(fn func(repository string) bool) ListOption {
 	return func(cfg *listConfig) { cfg.filter = fn }
 }
