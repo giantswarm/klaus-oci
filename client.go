@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime"
 	"strings"
 
 	"oras.land/oras-go/v2/registry/remote"
@@ -14,11 +13,9 @@ import (
 // Client is an ORAS-based client for interacting with OCI registries
 // that host Klaus artifacts (plugins and personalities).
 type Client struct {
-	plainHTTP    bool
-	authClient   *auth.Client
-	platformOS   string
-	platformArch string
-	concurrency  int
+	plainHTTP   bool
+	authClient  *auth.Client
+	concurrency int
 }
 
 const defaultConcurrency = 10
@@ -42,16 +39,6 @@ func WithConcurrency(n int) ClientOption {
 	}
 }
 
-// WithPlatform overrides the OS and architecture used when selecting a
-// platform-specific manifest from a multi-arch OCI index. By default the
-// client uses runtime.GOOS and runtime.GOARCH.
-func WithPlatform(os, arch string) ClientOption {
-	return func(c *Client) {
-		c.platformOS = os
-		c.platformArch = arch
-	}
-}
-
 // WithRegistryAuthEnv sets the environment variable name to check for
 // base64-encoded Docker config JSON credentials. If empty (the default),
 // no environment variable is checked and only Docker/Podman config files
@@ -65,10 +52,8 @@ func WithRegistryAuthEnv(envName string) ClientOption {
 // NewClient creates a new OCI client for Klaus artifacts.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
-		authClient:   newAuthClient(""),
-		platformOS:   runtime.GOOS,
-		platformArch: runtime.GOARCH,
-		concurrency:  defaultConcurrency,
+		authClient:  newAuthClient(""),
+		concurrency: defaultConcurrency,
 	}
 	for _, o := range opts {
 		o(c)

@@ -23,7 +23,6 @@ func TestResolveArtifactRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
 			"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae":     {"v0.0.1", "v0.0.3", "v0.0.2"},
-			"gsoci.azurecr.io/giantswarm/klaus-go":                {"v1.0.0", "v1.1.0"},
 			"gsoci.azurecr.io/giantswarm/klaus-personalities/sre": {"v0.1.0", "v0.2.0"},
 			"custom.registry.io/org/my-plugin":                    {"v2.0.0"},
 			"custom.registry.io/org/no-semver":                    {"latest", "main", "dev"},
@@ -33,7 +32,6 @@ func TestResolveArtifactRef(t *testing.T) {
 		name         string
 		ref          string
 		registryBase string
-		namePrefix   string
 		want         string
 		wantErr      bool
 	}{
@@ -66,20 +64,6 @@ func TestResolveArtifactRef(t *testing.T) {
 			ref:          "gs-ae:latest",
 			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
 			want:         "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.3",
-		},
-		{
-			name:         "short name with prefix",
-			ref:          "go",
-			registryBase: "gsoci.azurecr.io/giantswarm",
-			namePrefix:   "klaus-",
-			want:         "gsoci.azurecr.io/giantswarm/klaus-go:v1.1.0",
-		},
-		{
-			name:         "short name already has prefix",
-			ref:          "klaus-go",
-			registryBase: "gsoci.azurecr.io/giantswarm",
-			namePrefix:   "klaus-",
-			want:         "gsoci.azurecr.io/giantswarm/klaus-go:v1.1.0",
 		},
 		{
 			name:         "full ref with tag returned as-is",
@@ -133,7 +117,7 @@ func TestResolveArtifactRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, tt.registryBase, tt.namePrefix)
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, tt.registryBase)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("resolveArtifactRef() = %q, want error", got)
@@ -216,8 +200,8 @@ func TestResolvePluginRefsResolvesLatest(t *testing.T) {
 func TestResolveToolchainRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
-			"gsoci.azurecr.io/giantswarm/klaus-go":     {"v1.0.0", "v1.1.0"},
-			"gsoci.azurecr.io/giantswarm/klaus-python": {"v0.5.0"},
+			"gsoci.azurecr.io/giantswarm/klaus-toolchains/go":     {"v1.0.0", "v1.1.0"},
+			"gsoci.azurecr.io/giantswarm/klaus-toolchains/python": {"v0.5.0"},
 		},
 	}
 
@@ -230,17 +214,12 @@ func TestResolveToolchainRef(t *testing.T) {
 		{
 			name: "short name",
 			ref:  "go",
-			want: "gsoci.azurecr.io/giantswarm/klaus-go:v1.1.0",
-		},
-		{
-			name: "short name with prefix already present",
-			ref:  "klaus-python",
-			want: "gsoci.azurecr.io/giantswarm/klaus-python:v0.5.0",
+			want: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.1.0",
 		},
 		{
 			name: "short name with explicit tag",
 			ref:  "go:v1.0.0",
-			want: "gsoci.azurecr.io/giantswarm/klaus-go:v1.0.0",
+			want: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0",
 		},
 		{
 			name:    "unknown short name",
@@ -251,7 +230,7 @@ func TestResolveToolchainRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultToolchainRegistry, "klaus-")
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultToolchainRegistry)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("ResolveToolchainRef() = %q, want error", got)
@@ -300,7 +279,7 @@ func TestResolvePluginRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultPluginRegistry, "")
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultPluginRegistry)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("ResolvePluginRef() = %q, want error", got)
@@ -349,7 +328,7 @@ func TestResolvePersonalityRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultPersonalityRegistry, "")
+			got, err := resolveArtifactRef(t.Context(), lister, tt.ref, DefaultPersonalityRegistry)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("ResolvePersonalityRef() = %q, want error", got)

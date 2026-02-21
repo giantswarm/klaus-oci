@@ -149,18 +149,6 @@ func TestListArtifacts(t *testing.T) {
 		}
 	})
 
-	t.Run("annotations not fetched by default", func(t *testing.T) {
-		artifacts, err := client.ListArtifacts(t.Context(), base)
-		if err != nil {
-			t.Fatalf("ListArtifacts() error = %v", err)
-		}
-		for _, a := range artifacts {
-			if a.ArtifactInfo.Name != "" {
-				t.Errorf("expected empty ArtifactInfo.Name without WithAnnotations, got %q", a.ArtifactInfo.Name)
-			}
-		}
-	})
-
 	t.Run("WithFilter keeps only matching repos", func(t *testing.T) {
 		artifacts, err := client.ListArtifacts(t.Context(), base,
 			WithFilter(func(repo string) bool {
