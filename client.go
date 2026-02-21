@@ -2,6 +2,7 @@ package oci
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -134,7 +135,7 @@ func (c *Client) ListRepositories(ctx context.Context, registryBase string) ([]s
 		}
 		return nil
 	})
-	if err != nil && err != errStopIteration {
+	if err != nil && !errors.Is(err, errStopIteration) {
 		return nil, fmt.Errorf("listing repositories in %s: %w", registryBase, err)
 	}
 
@@ -143,7 +144,7 @@ func (c *Client) ListRepositories(ctx context.Context, registryBase string) ([]s
 
 // errStopIteration is a sentinel used to break out of paginated catalog
 // enumeration once all matching repositories have been found.
-var errStopIteration = fmt.Errorf("stop iteration")
+var errStopIteration = errors.New("stop iteration")
 
 // List returns all tags in the given repository.
 func (c *Client) List(ctx context.Context, repository string) ([]string, error) {
