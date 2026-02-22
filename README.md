@@ -5,7 +5,8 @@ Shared Go types and ORAS client for [Klaus](https://github.com/giantswarm/klausc
 Klaus uses OCI artifacts with custom media types for distributing **plugins** and **personalities**. This module provides:
 
 - Media type constants for all Klaus artifact types
-- Metadata structs (`PluginMeta`, `PersonalityMeta`, `PersonalitySpec`)
+- Metadata structs (`PluginMeta`, `PersonalityMeta`, `PersonalitySpec`, `ToolchainMeta`)
+- `SoulFileName` constant for locating the agent identity document in personality artifacts
 - An ORAS-based registry client for pull, push, resolve, and list operations
 - Digest-based caching to avoid redundant pulls
 - Secure tar.gz archive extraction with path traversal protection

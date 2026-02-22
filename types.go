@@ -1,5 +1,10 @@
 package oci
 
+// SoulFileName is the well-known filename for the agent identity document
+// inside a personality artifact. The soul document defines who the agent is:
+// its values, communication style, expertise, and behavioral guidelines.
+const SoulFileName = "SOUL.md"
+
 // PluginMeta holds metadata stored in the OCI config blob of a plugin artifact.
 type PluginMeta struct {
 	Name        string   `json:"name"`
@@ -17,13 +22,15 @@ type PersonalityMeta struct {
 }
 
 // PersonalitySpec is the deserialized content of a personality.yaml file
-// inside a personality artifact. It defines which plugins to compose and
-// optionally specifies a toolchain image.
+// inside a personality artifact. It defines the three pillars of an agent
+// personality: a soul document (SOUL.md, by convention), a toolchain
+// container image, and a set of plugin artifacts.
 type PersonalitySpec struct {
 	// Description is a human-readable description of the personality.
 	Description string `yaml:"description,omitempty"`
-	// Image is the optional toolchain container image reference.
-	Image string `yaml:"image,omitempty"`
+	// Toolchain is the optional container image reference for the execution
+	// environment (e.g. "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0").
+	Toolchain string `yaml:"toolchain,omitempty"`
 	// Plugins lists the plugin artifacts that make up this personality.
 	Plugins []PluginReference `yaml:"plugins,omitempty"`
 }

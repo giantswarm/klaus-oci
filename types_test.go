@@ -144,7 +144,7 @@ func TestToolchainMeta_JSON_OmitEmpty(t *testing.T) {
 func TestPersonalitySpec_YAML(t *testing.T) {
 	input := `
 description: Giant Swarm SRE personality
-image: gsoci.azurecr.io/giantswarm/klaus-toolchains/go:1.0.0
+toolchain: gsoci.azurecr.io/giantswarm/klaus-toolchains/go:1.0.0
 plugins:
   - repository: gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform
     tag: v1.2.0
@@ -160,16 +160,16 @@ plugins:
 	if spec.Description != "Giant Swarm SRE personality" {
 		t.Errorf("Description = %q, want %q", spec.Description, "Giant Swarm SRE personality")
 	}
-	if spec.Image != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:1.0.0" {
-		t.Errorf("Image = %q", spec.Image)
+	if spec.Toolchain != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:1.0.0" {
+		t.Errorf("Toolchain = %q, want %q", spec.Toolchain, "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:1.0.0")
 	}
 	if len(spec.Plugins) != 2 {
 		t.Fatalf("Plugins length = %d, want 2", len(spec.Plugins))
 	}
 	if spec.Plugins[0].Repository != "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform" {
-		t.Errorf("Plugins[0].Repository = %q", spec.Plugins[0].Repository)
+		t.Errorf("Plugins[0].Repository = %q, want %q", spec.Plugins[0].Repository, "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform")
 	}
 	if spec.Plugins[0].Tag != "v1.2.0" {
-		t.Errorf("Plugins[0].Tag = %q", spec.Plugins[0].Tag)
+		t.Errorf("Plugins[0].Tag = %q, want %q", spec.Plugins[0].Tag, "v1.2.0")
 	}
 }

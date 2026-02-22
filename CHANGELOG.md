@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking**: Rename `PersonalitySpec.Image` to `PersonalitySpec.Toolchain` (YAML key `image` -> `toolchain`) to clearly represent the toolchain container image reference.
 - Move toolchain images to `giantswarm/klaus-toolchains/<name>` sub-namespace (e.g. `gsoci.azurecr.io/giantswarm/klaus-toolchains/go`), matching the existing plugin and personality patterns. This narrows `ListRepositories` from scanning the entire `giantswarm/` catalog (921 repos, ~30s cold) to just the `klaus-toolchains/` sub-namespace.
 - `DefaultToolchainRegistry` changed from `gsoci.azurecr.io/giantswarm` to `gsoci.azurecr.io/giantswarm/klaus-toolchains`.
 - `ToolchainRegistryRef` no longer prepends `klaus-` to short names.
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SoulFileName` constant (`SOUL.md`) formalizing the well-known filename for the agent identity document inside personality artifacts.
 - `WithFilter` option for `ListArtifacts` to skip repositories before resolution, avoiding expensive tag listing and manifest fetches for non-matching repos.
 - `Client.ListRepositories` method for discovering OCI repositories under a registry base path via the catalog API, enabling remote artifact discovery without local cache.
 - `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.
