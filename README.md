@@ -6,7 +6,8 @@ Klaus uses OCI artifacts with custom media types for distributing **plugins** an
 
 - Media type constants for all Klaus artifact types
 - Metadata structs (`PluginMeta`, `PersonalityMeta`, `PersonalitySpec`, `ToolchainMeta`)
-- `SoulFileName` constant for locating the agent identity document in personality artifacts
+- `Personality` type combining parsed spec, soul document, and OCI metadata
+- `PullPersonality` method that pulls and parses a personality artifact in one call
 - An ORAS-based registry client for pull, push, resolve, and list operations
 - Digest-based caching to avoid redundant pulls
 - Secure tar.gz archive extraction with path traversal protection
@@ -21,7 +22,7 @@ go get github.com/giantswarm/klaus-oci
 
 ## Usage
 
-### Pulling a plugin
+### Pulling a personality
 
 ```go
 import oci "github.com/giantswarm/klaus-oci"
@@ -30,6 +31,18 @@ client := oci.NewClient(
     oci.WithRegistryAuthEnv("KLAUSCTL_REGISTRY_AUTH"),
 )
 
+p, err := client.PullPersonality(ctx, "gsoci.azurecr.io/giantswarm/klaus-personalities/sre:v1.0.0", "/tmp/cache/sre")
+if err != nil { ... }
+
+fmt.Println(p.Meta.Name)           // "sre"
+fmt.Println(p.Spec.Toolchain)      // "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0"
+fmt.Println(len(p.Spec.Plugins))   // 2
+fmt.Println(p.Soul)                // "You are a senior SRE at Giant Swarm..."
+```
+
+### Pulling a plugin (generic)
+
+```go
 result, err := client.Pull(ctx, "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform:v1.0.0", "/tmp/plugin", oci.PluginArtifact)
 ```
 

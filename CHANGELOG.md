@@ -29,7 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `SoulFileName` constant (`SOUL.md`) formalizing the well-known filename for the agent identity document inside personality artifacts.
+- `Personality` type that combines `PersonalityMeta`, `PersonalitySpec`, and the soul document content into a single value.
+- `Client.PullPersonality` method that pulls a personality artifact, parses `personality.yaml` and `SOUL.md`, and returns a fully populated `*Personality`. Consumers no longer need to navigate the extracted directory or hardcode filenames.
+
+### Removed
+
+- **Breaking**: `SoulFileName` public constant removed. The soul filename is now an internal detail of `PullPersonality`.
 - `WithFilter` option for `ListArtifacts` to skip repositories before resolution, avoiding expensive tag listing and manifest fetches for non-matching repos.
 - `Client.ListRepositories` method for discovering OCI repositories under a registry base path via the catalog API, enabling remote artifact discovery without local cache.
 - `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.

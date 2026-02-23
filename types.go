@@ -1,9 +1,10 @@
 package oci
 
-// SoulFileName is the well-known filename for the agent identity document
-// inside a personality artifact. The soul document defines who the agent is:
-// its values, communication style, expertise, and behavioral guidelines.
-const SoulFileName = "SOUL.md"
+// Well-known filenames inside a personality artifact.
+const (
+	personalitySpecFileName = "personality.yaml"
+	soulFileName            = "SOUL.md"
+)
 
 // PluginMeta holds metadata stored in the OCI config blob of a plugin artifact.
 type PluginMeta struct {
@@ -33,6 +34,26 @@ type PersonalitySpec struct {
 	Toolchain string `yaml:"toolchain,omitempty"`
 	// Plugins lists the plugin artifacts that make up this personality.
 	Plugins []PluginReference `yaml:"plugins,omitempty"`
+}
+
+// Personality is the fully resolved result of pulling a personality artifact.
+// It combines the OCI metadata, the parsed personality.yaml spec, and the
+// soul document content into a single value that consumers can use directly
+// without navigating the extracted directory.
+type Personality struct {
+	// Meta holds the OCI config metadata (name, version, description).
+	Meta PersonalityMeta
+	// Spec holds the parsed personality.yaml (toolchain, plugins).
+	Spec PersonalitySpec
+	// Soul is the content of SOUL.md -- the agent's identity document.
+	Soul string
+
+	// Digest is the resolved OCI manifest digest.
+	Digest string
+	// Ref is the original OCI reference that was pulled.
+	Ref string
+	// Cached is true when the pull was skipped because the local cache was fresh.
+	Cached bool
 }
 
 // PluginReference is a reference to a plugin OCI artifact.
