@@ -52,8 +52,8 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 	if err != nil {
 		return nil, fmt.Errorf("fetching config for %s: %w", ref, err)
 	}
+	defer configRC.Close()
 	configJSON, err := io.ReadAll(configRC)
-	configRC.Close()
 	if err != nil {
 		return nil, fmt.Errorf("reading config for %s: %w", ref, err)
 	}
@@ -92,6 +92,9 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 
 // PullPersonality downloads a personality artifact from an OCI registry and
 // returns a fully parsed Personality with metadata, spec, and soul content.
+// On a cache hit (Cached == true) the Meta field will be zero-valued because
+// the OCI config blob is not re-fetched; Spec and Soul are always parsed
+// from the extracted files on disk.
 func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir string) (*Personality, error) {
 	result, err := c.pull(ctx, ref, cacheDir, personalityArtifact)
 	if err != nil {
@@ -102,6 +105,8 @@ func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir strin
 
 // PullPlugin downloads a plugin artifact from an OCI registry and returns
 // a Plugin with metadata and the extraction directory.
+// On a cache hit (Cached == true) the Meta field will be zero-valued because
+// the OCI config blob is not re-fetched.
 func (c *Client) PullPlugin(ctx context.Context, ref string, destDir string) (*Plugin, error) {
 	result, err := c.pull(ctx, ref, destDir, pluginArtifact)
 	if err != nil {
@@ -142,6 +147,8 @@ func parsePersonalityFromDir(dir, ref string, result *pullResult) (*Personality,
 	soulData, err := os.ReadFile(filepath.Join(dir, "soul.md"))
 	if err == nil {
 		p.Soul = string(soulData)
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("reading soul.md: %w", err)
 	}
 
 	return p, nil

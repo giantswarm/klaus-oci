@@ -108,84 +108,68 @@ func (c *Client) listArtifacts(ctx context.Context, registryBase string, opts ..
 // personality registry (or a custom one via WithRegistry) and returns typed
 // results with name and version extracted from the repository path and tag.
 func (c *Client) ListPersonalities(ctx context.Context, opts ...ListOption) ([]ListedPersonality, error) {
-	base, opts := extractRegistryBase(DefaultPersonalityRegistry, opts)
-
-	artifacts, err := c.listArtifacts(ctx, base, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]ListedPersonality, len(artifacts))
-	for i, a := range artifacts {
-		name, version := extractNameVersion(a)
-		result[i] = ListedPersonality{
-			Name:       name,
-			Version:    version,
-			Repository: a.Repository,
-			Reference:  a.Reference,
-		}
-	}
-	return result, nil
+	return listTyped(c, ctx, DefaultPersonalityRegistry, func(info ListedArtifactInfo) ListedPersonality {
+		return ListedPersonality{info}
+	}, opts...)
 }
 
 // ListPlugins discovers all plugin artifacts under the default plugin
 // registry (or a custom one via WithRegistry) and returns typed results.
 func (c *Client) ListPlugins(ctx context.Context, opts ...ListOption) ([]ListedPlugin, error) {
-	base, opts := extractRegistryBase(DefaultPluginRegistry, opts)
-
-	artifacts, err := c.listArtifacts(ctx, base, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]ListedPlugin, len(artifacts))
-	for i, a := range artifacts {
-		name, version := extractNameVersion(a)
-		result[i] = ListedPlugin{
-			Name:       name,
-			Version:    version,
-			Repository: a.Repository,
-			Reference:  a.Reference,
-		}
-	}
-	return result, nil
+	return listTyped(c, ctx, DefaultPluginRegistry, func(info ListedArtifactInfo) ListedPlugin {
+		return ListedPlugin{info}
+	}, opts...)
 }
 
 // ListToolchains discovers all toolchain images under the default toolchain
 // registry (or a custom one via WithRegistry) and returns typed results.
 func (c *Client) ListToolchains(ctx context.Context, opts ...ListOption) ([]ListedToolchain, error) {
-	base, opts := extractRegistryBase(DefaultToolchainRegistry, opts)
+	return listTyped(c, ctx, DefaultToolchainRegistry, func(info ListedArtifactInfo) ListedToolchain {
+		return ListedToolchain{info}
+	}, opts...)
+}
+
+func listTyped[T any](c *Client, ctx context.Context, defaultBase string, wrap func(ListedArtifactInfo) T, opts ...ListOption) ([]T, error) {
+	base, opts := extractRegistryBase(defaultBase, opts)
 
 	artifacts, err := c.listArtifacts(ctx, base, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]ListedToolchain, len(artifacts))
+	result := make([]T, len(artifacts))
 	for i, a := range artifacts {
 		name, version := extractNameVersion(a)
-		result[i] = ListedToolchain{
+		result[i] = wrap(ListedArtifactInfo{
 			Name:       name,
 			Version:    version,
 			Repository: a.Repository,
 			Reference:  a.Reference,
-		}
+		})
 	}
 	return result, nil
 }
 
 // extractRegistryBase applies options to find a WithRegistry override and
-// returns the effective base plus the remaining options (without the registry
-// override so it isn't applied twice by listArtifacts).
+// returns the effective base plus the remaining options with the registry
+// override stripped so it isn't applied twice by listArtifacts.
 func extractRegistryBase(defaultBase string, opts []ListOption) (string, []ListOption) {
 	cfg := &listConfig{}
 	for _, o := range opts {
 		o(cfg)
 	}
-	if cfg.registryBase != "" {
-		return cfg.registryBase, opts
+	if cfg.registryBase == "" {
+		return defaultBase, opts
 	}
-	return defaultBase, opts
+	filtered := make([]ListOption, 0, len(opts))
+	for _, o := range opts {
+		probe := &listConfig{}
+		o(probe)
+		if probe.registryBase == "" {
+			filtered = append(filtered, o)
+		}
+	}
+	return cfg.registryBase, filtered
 }
 
 func extractNameVersion(a listedArtifact) (name, version string) {

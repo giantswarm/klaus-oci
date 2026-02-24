@@ -100,9 +100,10 @@ type Plugin struct {
 	Cached bool
 }
 
-// ListedPersonality holds metadata for a personality discovered by ListPersonalities.
-type ListedPersonality struct {
-	// Name is the short name derived from the repository path (e.g. "sre").
+// ListedArtifactInfo holds the common metadata for any artifact discovered
+// by the typed listing methods.
+type ListedArtifactInfo struct {
+	// Name is the short name derived from the repository path (e.g. "sre", "gs-platform").
 	Name string
 	// Version is the semver tag (e.g. "v1.0.0").
 	Version string
@@ -111,30 +112,15 @@ type ListedPersonality struct {
 	// Reference is the fully-qualified OCI reference including tag.
 	Reference string
 }
+
+// ListedPersonality holds metadata for a personality discovered by ListPersonalities.
+type ListedPersonality struct{ ListedArtifactInfo }
 
 // ListedPlugin holds metadata for a plugin discovered by ListPlugins.
-type ListedPlugin struct {
-	// Name is the short name derived from the repository path (e.g. "gs-platform").
-	Name string
-	// Version is the semver tag (e.g. "v1.0.0").
-	Version string
-	// Repository is the full OCI repository path.
-	Repository string
-	// Reference is the fully-qualified OCI reference including tag.
-	Reference string
-}
+type ListedPlugin struct{ ListedArtifactInfo }
 
 // ListedToolchain holds metadata for a toolchain discovered by ListToolchains.
-type ListedToolchain struct {
-	// Name is the short name derived from the repository path (e.g. "go").
-	Name string
-	// Version is the semver tag (e.g. "v1.0.0").
-	Version string
-	// Repository is the full OCI repository path.
-	Repository string
-	// Reference is the fully-qualified OCI reference including tag.
-	Reference string
-}
+type ListedToolchain struct{ ListedArtifactInfo }
 
 // pullResult holds the result of a successful internal pull operation.
 type pullResult struct {
