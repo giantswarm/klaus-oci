@@ -4,15 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gopkg.in/yaml.v3"
 )
 
-// Pull downloads a Klaus artifact from an OCI registry and extracts it to destDir.
+// pull downloads a Klaus artifact from an OCI registry and extracts it to destDir.
 // The kind parameter determines which content media type to look for in the manifest.
 // If the artifact is already cached with a matching digest, the pull is skipped
-// and PullResult.Cached is set to true.
-func (c *Client) Pull(ctx context.Context, ref string, destDir string, kind ArtifactKind) (*PullResult, error) {
+// and pullResult.Cached is set to true.
+func (c *Client) pull(ctx context.Context, ref string, destDir string, kind artifactKind) (*pullResult, error) {
 	repo, tag, err := c.newRepository(ref)
 	if err != nil {
 		return nil, err
@@ -30,7 +34,7 @@ func (c *Client) Pull(ctx context.Context, ref string, destDir string, kind Arti
 	digest := manifestDesc.Digest.String()
 
 	if IsCached(destDir, digest) {
-		return &PullResult{Digest: digest, Ref: ref, Cached: true}, nil
+		return &pullResult{Digest: digest, Ref: ref, Cached: true}, nil
 	}
 
 	manifestRC, err := repo.Fetch(ctx, manifestDesc)
@@ -42,6 +46,16 @@ func (c *Client) Pull(ctx context.Context, ref string, destDir string, kind Arti
 	var manifest ocispec.Manifest
 	if err := json.NewDecoder(manifestRC).Decode(&manifest); err != nil {
 		return nil, fmt.Errorf("parsing manifest for %s: %w", ref, err)
+	}
+
+	configRC, err := repo.Fetch(ctx, manifest.Config)
+	if err != nil {
+		return nil, fmt.Errorf("fetching config for %s: %w", ref, err)
+	}
+	configJSON, err := io.ReadAll(configRC)
+	configRC.Close()
+	if err != nil {
+		return nil, fmt.Errorf("reading config for %s: %w", ref, err)
 	}
 
 	var contentLayer *ocispec.Descriptor
@@ -73,5 +87,62 @@ func (c *Client) Pull(ctx context.Context, ref string, destDir string, kind Arti
 		return nil, fmt.Errorf("writing cache entry: %w", err)
 	}
 
-	return &PullResult{Digest: digest, Ref: ref}, nil
+	return &pullResult{Digest: digest, Ref: ref, ConfigJSON: configJSON}, nil
+}
+
+// PullPersonality downloads a personality artifact from an OCI registry and
+// returns a fully parsed Personality with metadata, spec, and soul content.
+func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir string) (*Personality, error) {
+	result, err := c.pull(ctx, ref, cacheDir, personalityArtifact)
+	if err != nil {
+		return nil, err
+	}
+	return parsePersonalityFromDir(cacheDir, ref, result)
+}
+
+// PullPlugin downloads a plugin artifact from an OCI registry and returns
+// a Plugin with metadata and the extraction directory.
+func (c *Client) PullPlugin(ctx context.Context, ref string, destDir string) (*Plugin, error) {
+	result, err := c.pull(ctx, ref, destDir, pluginArtifact)
+	if err != nil {
+		return nil, err
+	}
+	p := &Plugin{Dir: destDir, Digest: result.Digest, Ref: ref, Cached: result.Cached}
+	if result.ConfigJSON != nil {
+		if err := json.Unmarshal(result.ConfigJSON, &p.Meta); err != nil {
+			return nil, fmt.Errorf("parsing plugin config: %w", err)
+		}
+	}
+	return p, nil
+}
+
+func parsePersonalityFromDir(dir, ref string, result *pullResult) (*Personality, error) {
+	p := &Personality{
+		Dir:    dir,
+		Digest: result.Digest,
+		Ref:    ref,
+		Cached: result.Cached,
+	}
+
+	if result.ConfigJSON != nil {
+		if err := json.Unmarshal(result.ConfigJSON, &p.Meta); err != nil {
+			return nil, fmt.Errorf("parsing personality config: %w", err)
+		}
+	}
+
+	specData, err := os.ReadFile(filepath.Join(dir, "personality.yaml"))
+	if err == nil {
+		if err := yaml.Unmarshal(specData, &p.Spec); err != nil {
+			return nil, fmt.Errorf("parsing personality.yaml: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("reading personality.yaml: %w", err)
+	}
+
+	soulData, err := os.ReadFile(filepath.Join(dir, "soul.md"))
+	if err == nil {
+		p.Soul = string(soulData)
+	}
+
+	return p, nil
 }

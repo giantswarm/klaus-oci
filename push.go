@@ -11,10 +11,10 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// Push packages a directory and pushes it to an OCI registry as a Klaus artifact.
+// push packages a directory and pushes it to an OCI registry as a Klaus artifact.
 // The configJSON should be a marshaled PluginMeta or PersonalityMeta (depending on kind).
 // The ref must include a tag (e.g. "registry.example.com/repo:v1.0.0").
-func (c *Client) Push(ctx context.Context, sourceDir string, ref string, configJSON []byte, kind ArtifactKind) (*PushResult, error) {
+func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJSON []byte, kind artifactKind) (*PushResult, error) {
 	repo, tag, err := c.newRepository(ref)
 	if err != nil {
 		return nil, err
@@ -77,6 +77,26 @@ func (c *Client) Push(ctx context.Context, sourceDir string, ref string, configJ
 	}
 
 	return &PushResult{Digest: manifestDesc.Digest.String()}, nil
+}
+
+// PushPersonality pushes a personality artifact to an OCI registry.
+// The meta struct is marshaled to JSON automatically as the config blob.
+func (c *Client) PushPersonality(ctx context.Context, sourceDir, ref string, meta PersonalityMeta) (*PushResult, error) {
+	configJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling personality meta: %w", err)
+	}
+	return c.push(ctx, sourceDir, ref, configJSON, personalityArtifact)
+}
+
+// PushPlugin pushes a plugin artifact to an OCI registry.
+// The meta struct is marshaled to JSON automatically as the config blob.
+func (c *Client) PushPlugin(ctx context.Context, sourceDir, ref string, meta PluginMeta) (*PushResult, error) {
+	configJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling plugin meta: %w", err)
+	}
+	return c.push(ctx, sourceDir, ref, configJSON, pluginArtifact)
 }
 
 // annotationsFromConfig extracts standard OCI annotations from a config JSON blob.

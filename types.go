@@ -64,14 +64,88 @@ type ToolchainMeta struct {
 	Description string `json:"description,omitempty"`
 }
 
-// PullResult holds the result of a successful pull operation.
-type PullResult struct {
+// Personality holds the result of pulling a personality artifact.
+// It contains the parsed metadata, spec, and soul content.
+type Personality struct {
+	// Meta is the personality metadata from the OCI config blob.
+	Meta PersonalityMeta
+	// Spec is the deserialized personality.yaml from the artifact.
+	Spec PersonalitySpec
+	// Soul is the raw content of soul.md, if present.
+	Soul string
+	// Dir is the path where personality files were extracted.
+	Dir string
+	// Digest is the resolved manifest digest.
+	Digest string
+	// Ref is the original OCI reference string.
+	Ref string
+	// Cached is true if the pull was skipped because the local cache was fresh.
+	Cached bool
+}
+
+// Plugin holds the result of pulling a plugin artifact.
+// Plugins contain skill files and command definitions that are mounted into
+// the agent container, so the consumer gets the directory path rather than
+// individually parsed files.
+type Plugin struct {
+	// Meta is the plugin metadata from the OCI config blob.
+	Meta PluginMeta
+	// Dir is the path where plugin files were extracted.
+	Dir string
+	// Digest is the resolved manifest digest.
+	Digest string
+	// Ref is the original OCI reference string.
+	Ref string
+	// Cached is true if the pull was skipped because the local cache was fresh.
+	Cached bool
+}
+
+// ListedPersonality holds metadata for a personality discovered by ListPersonalities.
+type ListedPersonality struct {
+	// Name is the short name derived from the repository path (e.g. "sre").
+	Name string
+	// Version is the semver tag (e.g. "v1.0.0").
+	Version string
+	// Repository is the full OCI repository path.
+	Repository string
+	// Reference is the fully-qualified OCI reference including tag.
+	Reference string
+}
+
+// ListedPlugin holds metadata for a plugin discovered by ListPlugins.
+type ListedPlugin struct {
+	// Name is the short name derived from the repository path (e.g. "gs-platform").
+	Name string
+	// Version is the semver tag (e.g. "v1.0.0").
+	Version string
+	// Repository is the full OCI repository path.
+	Repository string
+	// Reference is the fully-qualified OCI reference including tag.
+	Reference string
+}
+
+// ListedToolchain holds metadata for a toolchain discovered by ListToolchains.
+type ListedToolchain struct {
+	// Name is the short name derived from the repository path (e.g. "go").
+	Name string
+	// Version is the semver tag (e.g. "v1.0.0").
+	Version string
+	// Repository is the full OCI repository path.
+	Repository string
+	// Reference is the fully-qualified OCI reference including tag.
+	Reference string
+}
+
+// pullResult holds the result of a successful internal pull operation.
+type pullResult struct {
 	// Digest is the resolved manifest digest.
 	Digest string
 	// Ref is the original reference string.
 	Ref string
 	// Cached is true if the pull was skipped because the local cache was fresh.
 	Cached bool
+	// ConfigJSON is the raw OCI config blob (nil on cache hit).
+	ConfigJSON []byte
 }
 
 // PushResult holds the result of a successful push operation.

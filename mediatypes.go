@@ -23,26 +23,21 @@ const (
 	MediaTypePersonalityContent = "application/vnd.giantswarm.klaus-personality.content.v1.tar+gzip"
 )
 
-// ArtifactKind bundles the media types for a specific Klaus artifact type.
-// Use the predefined kinds (PluginArtifact, PersonalityArtifact) or define
-// custom kinds for other artifact types.
-type ArtifactKind struct {
+// artifactKind bundles the media types for a specific Klaus artifact type.
+type artifactKind struct {
 	// ConfigMediaType is the media type for the OCI config blob.
 	ConfigMediaType string
 	// ContentMediaType is the media type for the OCI content layer.
 	ContentMediaType string
 }
 
-// Predefined artifact kinds for Klaus artifacts.
 var (
-	// PluginArtifact is the artifact kind for Klaus plugins.
-	PluginArtifact = ArtifactKind{
+	pluginArtifact = artifactKind{
 		ConfigMediaType:  MediaTypePluginConfig,
 		ContentMediaType: MediaTypePluginContent,
 	}
 
-	// PersonalityArtifact is the artifact kind for Klaus personalities.
-	PersonalityArtifact = ArtifactKind{
+	personalityArtifact = artifactKind{
 		ConfigMediaType:  MediaTypePersonalityConfig,
 		ContentMediaType: MediaTypePersonalityContent,
 	}
