@@ -3,8 +3,10 @@ package oci
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -34,7 +36,12 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 	digest := manifestDesc.Digest.String()
 
 	if IsCached(destDir, digest) {
-		return &pullResult{Digest: digest, Ref: ref, Cached: true}, nil
+		entry, _ := ReadCacheEntry(destDir)
+		var configJSON []byte
+		if entry != nil {
+			configJSON = entry.ConfigJSON
+		}
+		return &pullResult{Digest: digest, Ref: ref, Cached: true, ConfigJSON: configJSON}, nil
 	}
 
 	manifestRC, err := repo.Fetch(ctx, manifestDesc)
@@ -83,7 +90,7 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 		return nil, fmt.Errorf("extracting content for %s: %w", ref, err)
 	}
 
-	if err := WriteCacheEntry(destDir, CacheEntry{Digest: digest, Ref: ref}); err != nil {
+	if err := WriteCacheEntry(destDir, CacheEntry{Digest: digest, Ref: ref, ConfigJSON: configJSON}); err != nil {
 		return nil, fmt.Errorf("writing cache entry: %w", err)
 	}
 
@@ -92,9 +99,8 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 
 // PullPersonality downloads a personality artifact from an OCI registry and
 // returns a fully parsed Personality with metadata, spec, and soul content.
-// On a cache hit (Cached == true) the Meta field will be zero-valued because
-// the OCI config blob is not re-fetched; Spec and Soul are always parsed
-// from the extracted files on disk.
+// The config blob is persisted in the cache entry so that Meta is always
+// populated, even on cache hits.
 func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir string) (*Personality, error) {
 	result, err := c.pull(ctx, ref, cacheDir, personalityArtifact)
 	if err != nil {
@@ -104,15 +110,14 @@ func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir strin
 }
 
 // PullPlugin downloads a plugin artifact from an OCI registry and returns
-// a Plugin with metadata and the extraction directory.
-// On a cache hit (Cached == true) the Meta field will be zero-valued because
-// the OCI config blob is not re-fetched.
+// a Plugin with metadata and the extraction directory. The config blob is
+// persisted in the cache entry so that Meta is always populated.
 func (c *Client) PullPlugin(ctx context.Context, ref string, destDir string) (*Plugin, error) {
 	result, err := c.pull(ctx, ref, destDir, pluginArtifact)
 	if err != nil {
 		return nil, err
 	}
-	p := &Plugin{Dir: destDir, Digest: result.Digest, Ref: ref, Cached: result.Cached}
+	p := &Plugin{ArtifactResult: ArtifactResult{Dir: destDir, Digest: result.Digest, Ref: ref, Cached: result.Cached}}
 	if result.ConfigJSON != nil {
 		if err := json.Unmarshal(result.ConfigJSON, &p.Meta); err != nil {
 			return nil, fmt.Errorf("parsing plugin config: %w", err)
@@ -123,10 +128,12 @@ func (c *Client) PullPlugin(ctx context.Context, ref string, destDir string) (*P
 
 func parsePersonalityFromDir(dir, ref string, result *pullResult) (*Personality, error) {
 	p := &Personality{
-		Dir:    dir,
-		Digest: result.Digest,
-		Ref:    ref,
-		Cached: result.Cached,
+		ArtifactResult: ArtifactResult{
+			Dir:    dir,
+			Digest: result.Digest,
+			Ref:    ref,
+			Cached: result.Cached,
+		},
 	}
 
 	if result.ConfigJSON != nil {
@@ -140,14 +147,14 @@ func parsePersonalityFromDir(dir, ref string, result *pullResult) (*Personality,
 		if err := yaml.Unmarshal(specData, &p.Spec); err != nil {
 			return nil, fmt.Errorf("parsing personality.yaml: %w", err)
 		}
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("reading personality.yaml: %w", err)
 	}
 
 	soulData, err := os.ReadFile(filepath.Join(dir, "soul.md"))
 	if err == nil {
 		p.Soul = string(soulData)
-	} else if !os.IsNotExist(err) {
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("reading soul.md: %w", err)
 	}
 

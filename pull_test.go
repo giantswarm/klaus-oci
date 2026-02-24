@@ -72,7 +72,7 @@ plugins:
 	}
 }
 
-func TestParsePersonalityFromDir_CachedNoConfig(t *testing.T) {
+func TestParsePersonalityFromDir_CachedWithConfig(t *testing.T) {
 	dir := t.TempDir()
 
 	specYAML := `description: cached personality
@@ -82,10 +82,17 @@ plugins: []
 		t.Fatal(err)
 	}
 
+	meta := PersonalityMeta{Name: "cached", Version: "1.0.0"}
+	configJSON, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	result := &pullResult{
-		Digest: "sha256:def456",
-		Ref:    "registry/personalities/cached:v1.0.0",
-		Cached: true,
+		Digest:     "sha256:def456",
+		Ref:        "registry/personalities/cached:v1.0.0",
+		Cached:     true,
+		ConfigJSON: configJSON,
 	}
 
 	p, err := parsePersonalityFromDir(dir, result.Ref, result)
@@ -93,8 +100,8 @@ plugins: []
 		t.Fatalf("parsePersonalityFromDir() error = %v", err)
 	}
 
-	if p.Meta.Name != "" {
-		t.Errorf("Meta.Name = %q, want empty on cache hit", p.Meta.Name)
+	if p.Meta.Name != "cached" {
+		t.Errorf("Meta.Name = %q, want %q", p.Meta.Name, "cached")
 	}
 	if p.Spec.Description != "cached personality" {
 		t.Errorf("Spec.Description = %q", p.Spec.Description)
@@ -125,7 +132,7 @@ func TestParsePersonalityFromDir_NoFiles(t *testing.T) {
 	}
 }
 
-func TestPluginResult(t *testing.T) {
+func TestPluginMetaUnmarshal(t *testing.T) {
 	meta := PluginMeta{
 		Name:    "gs-platform",
 		Version: "1.0.0",
@@ -136,7 +143,7 @@ func TestPluginResult(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := &Plugin{Dir: "/tmp/plugin", Digest: "sha256:abc", Ref: "reg/plugin:v1", Cached: false}
+	p := &Plugin{ArtifactResult: ArtifactResult{Dir: "/tmp/plugin", Digest: "sha256:abc", Ref: "reg/plugin:v1"}}
 	if err := json.Unmarshal(configJSON, &p.Meta); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}

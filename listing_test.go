@@ -88,10 +88,9 @@ func TestListRepositories(t *testing.T) {
 		},
 		{
 			name:         "similar prefix not included",
-			registryBase: host + "/giantswarm/klaus-plugins",
+			registryBase: host + "/giantswarm/klaus-plugins-extra",
 			want: []string{
-				host + "/giantswarm/klaus-plugins/gs-base",
-				host + "/giantswarm/klaus-plugins/gs-platform",
+				host + "/giantswarm/klaus-plugins-extra/foo",
 			},
 		},
 		{

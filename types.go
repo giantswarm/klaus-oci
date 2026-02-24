@@ -64,16 +64,9 @@ type ToolchainMeta struct {
 	Description string `json:"description,omitempty"`
 }
 
-// Personality holds the result of pulling a personality artifact.
-// It contains the parsed metadata, spec, and soul content.
-type Personality struct {
-	// Meta is the personality metadata from the OCI config blob.
-	Meta PersonalityMeta
-	// Spec is the deserialized personality.yaml from the artifact.
-	Spec PersonalitySpec
-	// Soul is the raw content of soul.md, if present.
-	Soul string
-	// Dir is the path where personality files were extracted.
+// ArtifactResult holds fields common to all typed pull results.
+type ArtifactResult struct {
+	// Dir is the path where artifact files were extracted.
 	Dir string
 	// Digest is the resolved manifest digest.
 	Digest string
@@ -83,21 +76,26 @@ type Personality struct {
 	Cached bool
 }
 
+// Personality holds the result of pulling a personality artifact.
+// It contains the parsed metadata, spec, and soul content.
+type Personality struct {
+	ArtifactResult
+	// Meta is the personality metadata from the OCI config blob.
+	Meta PersonalityMeta
+	// Spec is the deserialized personality.yaml from the artifact.
+	Spec PersonalitySpec
+	// Soul is the raw content of soul.md, if present.
+	Soul string
+}
+
 // Plugin holds the result of pulling a plugin artifact.
 // Plugins contain skill files and command definitions that are mounted into
 // the agent container, so the consumer gets the directory path rather than
 // individually parsed files.
 type Plugin struct {
+	ArtifactResult
 	// Meta is the plugin metadata from the OCI config blob.
 	Meta PluginMeta
-	// Dir is the path where plugin files were extracted.
-	Dir string
-	// Digest is the resolved manifest digest.
-	Digest string
-	// Ref is the original OCI reference string.
-	Ref string
-	// Cached is true if the pull was skipped because the local cache was fresh.
-	Cached bool
 }
 
 // ListedArtifactInfo holds the common metadata for any artifact discovered

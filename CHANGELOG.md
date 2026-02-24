@@ -35,8 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PushPersonality` and `PushPlugin` typed push methods that accept `PersonalityMeta`/`PluginMeta` structs directly instead of raw JSON.
 - `ListPersonalities`, `ListPlugins`, `ListToolchains` typed listing methods that return `[]ListedPersonality`, `[]ListedPlugin`, `[]ListedToolchain` with extracted name and version.
 - `WithRegistry` list option to override the default registry base path for multi-source configurations.
+- `ArtifactResult` base struct embedded by `Personality` and `Plugin` with shared `Dir`, `Digest`, `Ref`, and `Cached` fields.
 - `Personality` struct as the pull result for personality artifacts, containing parsed `Meta`, `Spec`, `Soul`, and extraction directory.
 - `Plugin` struct as the pull result for plugin artifacts, containing parsed `Meta` and extraction directory.
+- OCI config blob is now persisted in the cache entry so that `Meta` is always populated on cache hits.
 - `ListedPersonality`, `ListedPlugin`, `ListedToolchain` lightweight discovery result types.
 - `WithFilter` option for listing methods to skip repositories before resolution.
 - `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.
