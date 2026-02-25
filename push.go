@@ -12,7 +12,7 @@ import (
 )
 
 // push packages a directory and pushes it to an OCI registry as a Klaus artifact.
-// The configJSON should be a marshaled PluginMeta or PersonalityMeta (depending on kind).
+// The configJSON should be a marshaled Plugin or Personality (depending on kind).
 // The ref must include a tag (e.g. "registry.example.com/repo:v1.0.0").
 func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJSON []byte, kind artifactKind) (*PushResult, error) {
 	repo, tag, err := c.newRepository(ref)
@@ -48,7 +48,7 @@ func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJ
 		return nil, fmt.Errorf("pushing content layer: %w", err)
 	}
 
-	annotations := annotationsFromConfig(configJSON)
+	annotations := buildAnnotations(configJSON, tag)
 
 	manifest := ocispec.Manifest{
 		Versioned:   specs.Versioned{SchemaVersion: 2},
@@ -80,31 +80,36 @@ func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJ
 }
 
 // PushPersonality pushes a personality artifact to an OCI registry.
-// The meta struct is marshaled to JSON automatically as the config blob.
-func (c *Client) PushPersonality(ctx context.Context, sourceDir, ref string, meta PersonalityMeta) (*PushResult, error) {
-	configJSON, err := json.Marshal(meta)
+// The Personality struct is marshaled to JSON as the config blob (Version
+// is excluded via json:"-"). The version is conveyed through the OCI tag
+// in the ref parameter.
+func (c *Client) PushPersonality(ctx context.Context, sourceDir, ref string, p Personality) (*PushResult, error) {
+	configJSON, err := json.Marshal(p)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling personality meta: %w", err)
+		return nil, fmt.Errorf("marshaling personality config: %w", err)
 	}
 	return c.push(ctx, sourceDir, ref, configJSON, personalityArtifact)
 }
 
 // PushPlugin pushes a plugin artifact to an OCI registry.
-// The meta struct is marshaled to JSON automatically as the config blob.
-func (c *Client) PushPlugin(ctx context.Context, sourceDir, ref string, meta PluginMeta) (*PushResult, error) {
-	configJSON, err := json.Marshal(meta)
+// The Plugin struct is marshaled to JSON as the config blob (Version
+// is excluded via json:"-"). The version is conveyed through the OCI tag
+// in the ref parameter.
+func (c *Client) PushPlugin(ctx context.Context, sourceDir, ref string, p Plugin) (*PushResult, error) {
+	configJSON, err := json.Marshal(p)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling plugin meta: %w", err)
+		return nil, fmt.Errorf("marshaling plugin config: %w", err)
 	}
 	return c.push(ctx, sourceDir, ref, configJSON, pluginArtifact)
 }
 
-// annotationsFromConfig extracts standard OCI annotations from a config JSON blob.
-// It looks for "name", "version", and "description" fields.
-func annotationsFromConfig(configJSON []byte) map[string]string {
+// buildAnnotations creates standard OCI manifest annotations from a config
+// JSON blob and the OCI tag. Name and description are read from the config
+// blob; version comes from the OCI tag (since Version is excluded from the
+// config blob via json:"-").
+func buildAnnotations(configJSON []byte, tag string) map[string]string {
 	var fields struct {
 		Name        string `json:"name"`
-		Version     string `json:"version"`
 		Description string `json:"description"`
 	}
 	if err := json.Unmarshal(configJSON, &fields); err != nil {
@@ -115,8 +120,8 @@ func annotationsFromConfig(configJSON []byte) map[string]string {
 	if fields.Name != "" {
 		annotations[ocispec.AnnotationTitle] = fields.Name
 	}
-	if fields.Version != "" {
-		annotations[ocispec.AnnotationVersion] = fields.Version
+	if tag != "" {
+		annotations[ocispec.AnnotationVersion] = tag
 	}
 	if fields.Description != "" {
 		annotations[ocispec.AnnotationDescription] = fields.Description

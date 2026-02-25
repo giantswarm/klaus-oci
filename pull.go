@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gopkg.in/yaml.v3"
 )
 
 // pull downloads a Klaus artifact from an OCI registry and extracts it to destDir.
@@ -98,10 +97,10 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 }
 
 // PullPersonality downloads a personality artifact from an OCI registry and
-// returns a fully parsed Personality with metadata, spec, and soul content.
-// The config blob is persisted in the cache entry so that Meta is always
+// returns a PulledPersonality with metadata, composition, and soul content.
+// The config blob is persisted in the cache entry so that metadata is always
 // populated, even on cache hits.
-func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir string) (*Personality, error) {
+func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir string) (*PulledPersonality, error) {
 	result, err := c.pull(ctx, ref, cacheDir, personalityArtifact)
 	if err != nil {
 		return nil, err
@@ -110,52 +109,52 @@ func (c *Client) PullPersonality(ctx context.Context, ref string, cacheDir strin
 }
 
 // PullPlugin downloads a plugin artifact from an OCI registry and returns
-// a Plugin with metadata and the extraction directory. The config blob is
-// persisted in the cache entry so that Meta is always populated.
-func (c *Client) PullPlugin(ctx context.Context, ref string, destDir string) (*Plugin, error) {
+// a PulledPlugin with metadata and the extraction directory. The config blob
+// is persisted in the cache entry so that metadata is always populated.
+func (c *Client) PullPlugin(ctx context.Context, ref string, destDir string) (*PulledPlugin, error) {
 	result, err := c.pull(ctx, ref, destDir, pluginArtifact)
 	if err != nil {
 		return nil, err
 	}
-	p := &Plugin{ArtifactResult: ArtifactResult{Dir: destDir, Digest: result.Digest, Ref: ref, Cached: result.Cached}}
+	_, tag := SplitNameTag(ref)
+	p := &PulledPlugin{
+		ArtifactInfo: ArtifactInfo{Ref: ref, Tag: tag, Digest: result.Digest},
+		Dir:          destDir,
+		Cached:       result.Cached,
+	}
 	if result.ConfigJSON != nil {
-		if err := json.Unmarshal(result.ConfigJSON, &p.Meta); err != nil {
+		if err := json.Unmarshal(result.ConfigJSON, &p.Plugin); err != nil {
 			return nil, fmt.Errorf("parsing plugin config: %w", err)
 		}
 	}
+	p.Plugin.Version = tag
 	return p, nil
 }
 
-func parsePersonalityFromDir(dir, ref string, result *pullResult) (*Personality, error) {
-	p := &Personality{
-		ArtifactResult: ArtifactResult{
-			Dir:    dir,
-			Digest: result.Digest,
+func parsePersonalityFromDir(dir, ref string, result *pullResult) (*PulledPersonality, error) {
+	_, tag := SplitNameTag(ref)
+	p := &PulledPersonality{
+		ArtifactInfo: ArtifactInfo{
 			Ref:    ref,
-			Cached: result.Cached,
+			Tag:    tag,
+			Digest: result.Digest,
 		},
+		Dir:    dir,
+		Cached: result.Cached,
 	}
 
 	if result.ConfigJSON != nil {
-		if err := json.Unmarshal(result.ConfigJSON, &p.Meta); err != nil {
+		if err := json.Unmarshal(result.ConfigJSON, &p.Personality); err != nil {
 			return nil, fmt.Errorf("parsing personality config: %w", err)
 		}
 	}
+	p.Personality.Version = tag
 
-	specData, err := os.ReadFile(filepath.Join(dir, "personality.yaml"))
-	if err == nil {
-		if err := yaml.Unmarshal(specData, &p.Spec); err != nil {
-			return nil, fmt.Errorf("parsing personality.yaml: %w", err)
-		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("reading personality.yaml: %w", err)
-	}
-
-	soulData, err := os.ReadFile(filepath.Join(dir, "soul.md"))
+	soulData, err := os.ReadFile(filepath.Join(dir, "SOUL.md"))
 	if err == nil {
 		p.Soul = string(soulData)
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("reading soul.md: %w", err)
+		return nil, fmt.Errorf("reading SOUL.md: %w", err)
 	}
 
 	return p, nil

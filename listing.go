@@ -105,31 +105,26 @@ func (c *Client) listArtifacts(ctx context.Context, registryBase string, opts ..
 }
 
 // ListPersonalities discovers all personality artifacts under the default
-// personality registry (or a custom one via WithRegistry) and returns typed
-// results with name and version extracted from the repository path and tag.
-func (c *Client) ListPersonalities(ctx context.Context, opts ...ListOption) ([]ListedPersonality, error) {
-	return listTyped(c, ctx, DefaultPersonalityRegistry, func(info ListedArtifactInfo) ListedPersonality {
-		return ListedPersonality{info}
-	}, opts...)
+// personality registry (or a custom one via WithRegistry) and returns
+// ListEntry results with name and version extracted from the repository
+// path and tag.
+func (c *Client) ListPersonalities(ctx context.Context, opts ...ListOption) ([]ListEntry, error) {
+	return c.listEntries(ctx, DefaultPersonalityRegistry, opts...)
 }
 
 // ListPlugins discovers all plugin artifacts under the default plugin
-// registry (or a custom one via WithRegistry) and returns typed results.
-func (c *Client) ListPlugins(ctx context.Context, opts ...ListOption) ([]ListedPlugin, error) {
-	return listTyped(c, ctx, DefaultPluginRegistry, func(info ListedArtifactInfo) ListedPlugin {
-		return ListedPlugin{info}
-	}, opts...)
+// registry (or a custom one via WithRegistry) and returns ListEntry results.
+func (c *Client) ListPlugins(ctx context.Context, opts ...ListOption) ([]ListEntry, error) {
+	return c.listEntries(ctx, DefaultPluginRegistry, opts...)
 }
 
 // ListToolchains discovers all toolchain images under the default toolchain
-// registry (or a custom one via WithRegistry) and returns typed results.
-func (c *Client) ListToolchains(ctx context.Context, opts ...ListOption) ([]ListedToolchain, error) {
-	return listTyped(c, ctx, DefaultToolchainRegistry, func(info ListedArtifactInfo) ListedToolchain {
-		return ListedToolchain{info}
-	}, opts...)
+// registry (or a custom one via WithRegistry) and returns ListEntry results.
+func (c *Client) ListToolchains(ctx context.Context, opts ...ListOption) ([]ListEntry, error) {
+	return c.listEntries(ctx, DefaultToolchainRegistry, opts...)
 }
 
-func listTyped[T any](c *Client, ctx context.Context, defaultBase string, wrap func(ListedArtifactInfo) T, opts ...ListOption) ([]T, error) {
+func (c *Client) listEntries(ctx context.Context, defaultBase string, opts ...ListOption) ([]ListEntry, error) {
 	base := extractRegistryBase(defaultBase, opts)
 
 	artifacts, err := c.listArtifacts(ctx, base, opts...)
@@ -137,15 +132,15 @@ func listTyped[T any](c *Client, ctx context.Context, defaultBase string, wrap f
 		return nil, err
 	}
 
-	result := make([]T, len(artifacts))
+	result := make([]ListEntry, len(artifacts))
 	for i, a := range artifacts {
 		name, version := extractNameVersion(a)
-		result[i] = wrap(ListedArtifactInfo{
+		result[i] = ListEntry{
 			Name:       name,
 			Version:    version,
 			Repository: a.Repository,
 			Reference:  a.Reference,
-		})
+		}
 	}
 	return result, nil
 }

@@ -10,21 +10,22 @@ import (
 func TestParsePersonalityFromDir(t *testing.T) {
 	dir := t.TempDir()
 
-	specYAML := `description: Giant Swarm SRE personality
-image: gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0
-plugins:
-  - repository: gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform
-    tag: v1.2.0
-`
-	if err := os.WriteFile(filepath.Join(dir, "personality.yaml"), []byte(specYAML), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "soul.md"), []byte("You are an SRE."), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "SOUL.md"), []byte("You are an SRE."), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	meta := PersonalityMeta{Name: "sre", Version: "1.0.0", Description: "SRE personality"}
-	configJSON, err := json.Marshal(meta)
+	personality := Personality{
+		Name:        "sre",
+		Description: "SRE personality",
+		Toolchain: ToolchainReference{
+			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
+			Tag:        "v1.0.0",
+		},
+		Plugins: []PluginReference{
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform", Tag: "v1.2.0"},
+		},
+	}
+	configJSON, err := json.Marshal(personality)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,23 +41,23 @@ plugins:
 		t.Fatalf("parsePersonalityFromDir() error = %v", err)
 	}
 
-	if p.Meta.Name != "sre" {
-		t.Errorf("Meta.Name = %q, want %q", p.Meta.Name, "sre")
+	if p.Personality.Name != "sre" {
+		t.Errorf("Name = %q, want %q", p.Personality.Name, "sre")
 	}
-	if p.Meta.Version != "1.0.0" {
-		t.Errorf("Meta.Version = %q, want %q", p.Meta.Version, "1.0.0")
+	if p.Personality.Version != "v1.0.0" {
+		t.Errorf("Version = %q, want %q", p.Personality.Version, "v1.0.0")
 	}
-	if p.Spec.Description != "Giant Swarm SRE personality" {
-		t.Errorf("Spec.Description = %q", p.Spec.Description)
+	if p.Personality.Description != "SRE personality" {
+		t.Errorf("Description = %q", p.Personality.Description)
 	}
-	if p.Spec.Image != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0" {
-		t.Errorf("Spec.Image = %q", p.Spec.Image)
+	if p.Personality.Toolchain.Repository != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" {
+		t.Errorf("Toolchain.Repository = %q", p.Personality.Toolchain.Repository)
 	}
-	if len(p.Spec.Plugins) != 1 {
-		t.Fatalf("Spec.Plugins length = %d, want 1", len(p.Spec.Plugins))
+	if len(p.Personality.Plugins) != 1 {
+		t.Fatalf("Plugins length = %d, want 1", len(p.Personality.Plugins))
 	}
-	if p.Spec.Plugins[0].Tag != "v1.2.0" {
-		t.Errorf("Spec.Plugins[0].Tag = %q, want %q", p.Spec.Plugins[0].Tag, "v1.2.0")
+	if p.Personality.Plugins[0].Tag != "v1.2.0" {
+		t.Errorf("Plugins[0].Tag = %q, want %q", p.Personality.Plugins[0].Tag, "v1.2.0")
 	}
 	if p.Soul != "You are an SRE." {
 		t.Errorf("Soul = %q, want %q", p.Soul, "You are an SRE.")
@@ -64,26 +65,25 @@ plugins:
 	if p.Dir != dir {
 		t.Errorf("Dir = %q, want %q", p.Dir, dir)
 	}
-	if p.Digest != "sha256:abc123" {
-		t.Errorf("Digest = %q, want %q", p.Digest, "sha256:abc123")
+	if p.ArtifactInfo.Digest != "sha256:abc123" {
+		t.Errorf("Digest = %q, want %q", p.ArtifactInfo.Digest, "sha256:abc123")
 	}
-	if p.Ref != result.Ref {
-		t.Errorf("Ref = %q, want %q", p.Ref, result.Ref)
+	if p.ArtifactInfo.Ref != result.Ref {
+		t.Errorf("Ref = %q, want %q", p.ArtifactInfo.Ref, result.Ref)
+	}
+	if p.ArtifactInfo.Tag != "v1.0.0" {
+		t.Errorf("Tag = %q, want %q", p.ArtifactInfo.Tag, "v1.0.0")
 	}
 }
 
 func TestParsePersonalityFromDir_CachedWithConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	specYAML := `description: cached personality
-plugins: []
-`
-	if err := os.WriteFile(filepath.Join(dir, "personality.yaml"), []byte(specYAML), 0o644); err != nil {
-		t.Fatal(err)
+	personality := Personality{
+		Name:        "cached",
+		Description: "cached personality",
 	}
-
-	meta := PersonalityMeta{Name: "cached", Version: "1.0.0"}
-	configJSON, err := json.Marshal(meta)
+	configJSON, err := json.Marshal(personality)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,17 +100,17 @@ plugins: []
 		t.Fatalf("parsePersonalityFromDir() error = %v", err)
 	}
 
-	if p.Meta.Name != "cached" {
-		t.Errorf("Meta.Name = %q, want %q", p.Meta.Name, "cached")
+	if p.Personality.Name != "cached" {
+		t.Errorf("Name = %q, want %q", p.Personality.Name, "cached")
 	}
-	if p.Spec.Description != "cached personality" {
-		t.Errorf("Spec.Description = %q", p.Spec.Description)
+	if p.Personality.Description != "cached personality" {
+		t.Errorf("Description = %q", p.Personality.Description)
 	}
 	if !p.Cached {
 		t.Error("expected Cached = true")
 	}
 	if p.Soul != "" {
-		t.Errorf("Soul = %q, want empty when soul.md missing", p.Soul)
+		t.Errorf("Soul = %q, want empty when SOUL.md missing", p.Soul)
 	}
 }
 
@@ -127,31 +127,33 @@ func TestParsePersonalityFromDir_NoFiles(t *testing.T) {
 		t.Fatalf("parsePersonalityFromDir() error = %v", err)
 	}
 
-	if p.Spec.Description != "" {
-		t.Errorf("Spec.Description = %q, want empty", p.Spec.Description)
+	if p.Personality.Description != "" {
+		t.Errorf("Description = %q, want empty", p.Personality.Description)
 	}
 }
 
-func TestPluginMetaUnmarshal(t *testing.T) {
-	meta := PluginMeta{
-		Name:    "gs-platform",
-		Version: "1.0.0",
-		Skills:  []string{"kubernetes"},
+func TestPluginUnmarshal(t *testing.T) {
+	plugin := Plugin{
+		Name:   "gs-platform",
+		Skills: []string{"kubernetes"},
 	}
-	configJSON, err := json.Marshal(meta)
+	configJSON, err := json.Marshal(plugin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p := &Plugin{ArtifactResult: ArtifactResult{Dir: "/tmp/plugin", Digest: "sha256:abc", Ref: "reg/plugin:v1"}}
-	if err := json.Unmarshal(configJSON, &p.Meta); err != nil {
+	p := &PulledPlugin{
+		ArtifactInfo: ArtifactInfo{Ref: "reg/plugin:v1", Tag: "v1", Digest: "sha256:abc"},
+		Dir:          "/tmp/plugin",
+	}
+	if err := json.Unmarshal(configJSON, &p.Plugin); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if p.Meta.Name != "gs-platform" {
-		t.Errorf("Meta.Name = %q, want %q", p.Meta.Name, "gs-platform")
+	if p.Plugin.Name != "gs-platform" {
+		t.Errorf("Name = %q, want %q", p.Plugin.Name, "gs-platform")
 	}
-	if len(p.Meta.Skills) != 1 || p.Meta.Skills[0] != "kubernetes" {
-		t.Errorf("Meta.Skills = %v, want [kubernetes]", p.Meta.Skills)
+	if len(p.Plugin.Skills) != 1 || p.Plugin.Skills[0] != "kubernetes" {
+		t.Errorf("Skills = %v, want [kubernetes]", p.Plugin.Skills)
 	}
 }
