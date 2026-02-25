@@ -134,69 +134,6 @@ func TestResolveArtifactRef(t *testing.T) {
 	}
 }
 
-func TestResolvePluginRefsSkipsDigests(t *testing.T) {
-	plugins := []PluginReference{
-		{Repository: "example.com/plugin-a", Digest: "sha256:abc123"},
-	}
-
-	lister := &mockTagLister{tags: map[string][]string{}}
-	resolved, err := resolvePluginRefs(t.Context(), lister, plugins)
-	if err != nil {
-		t.Fatalf("resolvePluginRefs() error = %v", err)
-	}
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 plugin, got %d", len(resolved))
-	}
-	if resolved[0].Digest != "sha256:abc123" {
-		t.Errorf("digest = %q, want unchanged", resolved[0].Digest)
-	}
-}
-
-func TestResolvePluginRefsSkipsVersionedTags(t *testing.T) {
-	plugins := []PluginReference{
-		{Repository: "example.com/plugin-a", Tag: "v1.2.3"},
-	}
-
-	lister := &mockTagLister{tags: map[string][]string{}}
-	resolved, err := resolvePluginRefs(t.Context(), lister, plugins)
-	if err != nil {
-		t.Fatalf("resolvePluginRefs() error = %v", err)
-	}
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 plugin, got %d", len(resolved))
-	}
-	if resolved[0].Tag != "v1.2.3" {
-		t.Errorf("tag = %q, want unchanged v1.2.3", resolved[0].Tag)
-	}
-}
-
-func TestResolvePluginRefsResolvesLatest(t *testing.T) {
-	plugins := []PluginReference{
-		{Repository: "example.com/plugin-a", Tag: "latest"},
-		{Repository: "example.com/plugin-b"},
-	}
-
-	lister := &mockTagLister{
-		tags: map[string][]string{
-			"example.com/plugin-a": {"v1.0.0", "v1.1.0"},
-			"example.com/plugin-b": {"v0.5.0"},
-		},
-	}
-	resolved, err := resolvePluginRefs(t.Context(), lister, plugins)
-	if err != nil {
-		t.Fatalf("resolvePluginRefs() error = %v", err)
-	}
-	if len(resolved) != 2 {
-		t.Fatalf("expected 2 plugins, got %d", len(resolved))
-	}
-	if resolved[0].Tag != "v1.1.0" {
-		t.Errorf("plugin-a tag = %q, want v1.1.0", resolved[0].Tag)
-	}
-	if resolved[1].Tag != "v0.5.0" {
-		t.Errorf("plugin-b tag = %q, want v0.5.0", resolved[1].Tag)
-	}
-}
-
 func TestResolveToolchainRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
@@ -342,27 +279,5 @@ func TestResolvePersonalityRef(t *testing.T) {
 				t.Errorf("ResolvePersonalityRef() = %q, want %q", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestResolvePluginRefsDoesNotMutateInput(t *testing.T) {
-	plugins := []PluginReference{
-		{Repository: "example.com/plugin-a", Tag: "latest"},
-	}
-
-	lister := &mockTagLister{
-		tags: map[string][]string{
-			"example.com/plugin-a": {"v1.0.0"},
-		},
-	}
-	resolved, err := resolvePluginRefs(t.Context(), lister, plugins)
-	if err != nil {
-		t.Fatalf("resolvePluginRefs() error = %v", err)
-	}
-	if resolved[0].Tag != "v1.0.0" {
-		t.Errorf("resolved tag = %q, want v1.0.0", resolved[0].Tag)
-	}
-	if plugins[0].Tag != "latest" {
-		t.Errorf("original input was mutated: tag = %q, want latest", plugins[0].Tag)
 	}
 }
