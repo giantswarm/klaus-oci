@@ -239,5 +239,5 @@ type pullResult struct {
 	Digest     string
 	Ref        string
 	Cached     bool
-	ConfigJSON []byte // Raw OCI config blob (nil on cache hit).
+	ConfigJSON []byte // Raw OCI config blob (read from cache entry on cache hit).
 }
