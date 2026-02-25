@@ -10,7 +10,10 @@ import (
 func TestBuildAnnotations(t *testing.T) {
 	t.Run("full metadata", func(t *testing.T) {
 		configJSON := []byte(`{"name":"test","description":"A test"}`)
-		annotations := buildAnnotations(configJSON, "v1.0.0")
+		annotations, err := buildAnnotations(configJSON, "v1.0.0")
+		if err != nil {
+			t.Fatalf("buildAnnotations() error = %v", err)
+		}
 
 		if annotations[ocispec.AnnotationTitle] != "test" {
 			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "test")
@@ -25,7 +28,10 @@ func TestBuildAnnotations(t *testing.T) {
 
 	t.Run("version from tag not config", func(t *testing.T) {
 		configJSON := []byte(`{"name":"test"}`)
-		annotations := buildAnnotations(configJSON, "v2.0.0")
+		annotations, err := buildAnnotations(configJSON, "v2.0.0")
+		if err != nil {
+			t.Fatalf("buildAnnotations() error = %v", err)
+		}
 
 		if annotations[ocispec.AnnotationVersion] != "v2.0.0" {
 			t.Errorf("version = %q, want %q", annotations[ocispec.AnnotationVersion], "v2.0.0")
@@ -34,16 +40,19 @@ func TestBuildAnnotations(t *testing.T) {
 
 	t.Run("empty metadata", func(t *testing.T) {
 		configJSON := []byte(`{}`)
-		annotations := buildAnnotations(configJSON, "")
+		annotations, err := buildAnnotations(configJSON, "")
+		if err != nil {
+			t.Fatalf("buildAnnotations() error = %v", err)
+		}
 		if annotations != nil {
 			t.Errorf("expected nil annotations for empty config and tag, got %v", annotations)
 		}
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
-		annotations := buildAnnotations([]byte("not json"), "v1.0.0")
-		if annotations != nil {
-			t.Errorf("expected nil annotations for invalid JSON, got %v", annotations)
+		_, err := buildAnnotations([]byte("not json"), "v1.0.0")
+		if err == nil {
+			t.Fatal("expected error for invalid JSON")
 		}
 	})
 
@@ -55,7 +64,10 @@ func TestBuildAnnotations(t *testing.T) {
 		}
 		configJSON, _ := json.Marshal(plugin)
 
-		annotations := buildAnnotations(configJSON, "v1.0.0")
+		annotations, err := buildAnnotations(configJSON, "v1.0.0")
+		if err != nil {
+			t.Fatalf("buildAnnotations() error = %v", err)
+		}
 
 		if annotations[ocispec.AnnotationTitle] != "gs-base" {
 			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "gs-base")
@@ -79,7 +91,10 @@ func TestBuildAnnotations(t *testing.T) {
 		}
 		configJSON, _ := json.Marshal(personality)
 
-		annotations := buildAnnotations(configJSON, "v2.0.0")
+		annotations, err := buildAnnotations(configJSON, "v2.0.0")
+		if err != nil {
+			t.Fatalf("buildAnnotations() error = %v", err)
+		}
 
 		if annotations[ocispec.AnnotationTitle] != "sre" {
 			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "sre")
@@ -94,7 +109,10 @@ func TestBuildAnnotations(t *testing.T) {
 
 	t.Run("name only", func(t *testing.T) {
 		configJSON := []byte(`{"name":"minimal"}`)
-		annotations := buildAnnotations(configJSON, "v1.0.0")
+		annotations, err := buildAnnotations(configJSON, "v1.0.0")
+		if err != nil {
+			t.Fatalf("buildAnnotations() error = %v", err)
+		}
 
 		if annotations[ocispec.AnnotationTitle] != "minimal" {
 			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "minimal")

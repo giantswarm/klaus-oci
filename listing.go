@@ -42,20 +42,26 @@ func WithRegistry(base string) ListOption {
 }
 
 // listArtifacts discovers all artifacts under a registry base path and
-// resolves each to its latest semver version.
+// resolves each to its latest semver version. The defaultBase is used
+// unless overridden by WithRegistry in opts.
 //
 // Repositories are resolved concurrently, bounded by the client's concurrency
 // limit (default 10, configurable via WithConcurrency). Results are sorted
 // alphabetically by repository name for deterministic output.
 //
 // Repositories that have no semver tags are silently skipped.
-func (c *Client) listArtifacts(ctx context.Context, registryBase string, opts ...ListOption) ([]listedArtifact, error) {
+func (c *Client) listArtifacts(ctx context.Context, defaultBase string, opts ...ListOption) ([]listedArtifact, error) {
 	cfg := &listConfig{}
 	for _, o := range opts {
 		o(cfg)
 	}
 
-	repos, err := c.listRepositories(ctx, registryBase)
+	base := defaultBase
+	if cfg.registryBase != "" {
+		base = cfg.registryBase
+	}
+
+	repos, err := c.listRepositories(ctx, base)
 	if err != nil {
 		return nil, err
 	}
@@ -127,9 +133,7 @@ func (c *Client) ListToolchains(ctx context.Context, opts ...ListOption) ([]List
 }
 
 func (c *Client) listEntries(ctx context.Context, defaultBase string, opts ...ListOption) ([]ListEntry, error) {
-	base := extractRegistryBase(defaultBase, opts)
-
-	artifacts, err := c.listArtifacts(ctx, base, opts...)
+	artifacts, err := c.listArtifacts(ctx, defaultBase, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -145,21 +149,6 @@ func (c *Client) listEntries(ctx context.Context, defaultBase string, opts ...Li
 		}
 	}
 	return result, nil
-}
-
-// extractRegistryBase applies options to find a WithRegistry override and
-// returns the effective base. The registryBase field on listConfig is unused
-// by listArtifacts (which takes base as a positional arg), so the options
-// can be passed through unmodified.
-func extractRegistryBase(defaultBase string, opts []ListOption) string {
-	cfg := &listConfig{}
-	for _, o := range opts {
-		o(cfg)
-	}
-	if cfg.registryBase != "" {
-		return cfg.registryBase
-	}
-	return defaultBase
 }
 
 func extractNameVersion(a listedArtifact) (name, version string) {
@@ -224,13 +213,7 @@ func sortedSemverTags(tags []string) []string {
 	}
 
 	slices.SortFunc(versions, func(a, b parsed) int {
-		if a.ver.GreaterThan(b.ver) {
-			return -1
-		}
-		if b.ver.GreaterThan(a.ver) {
-			return 1
-		}
-		return 0
+		return b.ver.Compare(a.ver)
 	})
 
 	result := make([]string, len(versions))

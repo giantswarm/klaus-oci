@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -90,7 +90,7 @@ func discoverSkills(dir string) []string {
 			names = append(names, entry.Name())
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -112,7 +112,7 @@ func discoverMarkdownNames(dir string) []string {
 			names = append(names, strings.TrimSuffix(name, ".md"))
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -147,6 +147,6 @@ func discoverJSONKeys(path string) []string {
 	for key := range obj {
 		names = append(names, key)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }

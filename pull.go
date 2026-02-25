@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"oras.land/oras-go/v2/registry/remote"
 )
 
 // pull downloads a Klaus artifact from an OCI registry and extracts it to destDir.
@@ -40,6 +41,19 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 		if entry != nil {
 			configJSON = entry.ConfigJSON
 		}
+
+		// Backfill ConfigJSON for cache entries written before it was
+		// persisted. Fetch only the manifest + config blob (no layers).
+		if configJSON == nil {
+			if cfg, err := c.fetchCachedConfig(ctx, repo, ref, tag); err == nil {
+				configJSON = cfg
+				if entry != nil {
+					entry.ConfigJSON = configJSON
+					_ = WriteCacheEntry(destDir, *entry)
+				}
+			}
+		}
+
 		return &pullResult{Digest: digest, Ref: ref, Cached: true, ConfigJSON: configJSON}, nil
 	}
 
@@ -158,4 +172,33 @@ func parsePersonalityFromDir(dir, ref string, result *pullResult) (*PulledPerson
 	}
 
 	return p, nil
+}
+
+// fetchCachedConfig fetches the config blob for a cached artifact by
+// re-reading the manifest from the registry. This is used to backfill
+// ConfigJSON for cache entries created before config persistence was added.
+func (c *Client) fetchCachedConfig(ctx context.Context, repo *remote.Repository, ref, tag string) ([]byte, error) {
+	manifestDesc, err := repo.Resolve(ctx, tag)
+	if err != nil {
+		return nil, err
+	}
+
+	manifestRC, err := repo.Fetch(ctx, manifestDesc)
+	if err != nil {
+		return nil, err
+	}
+	defer manifestRC.Close()
+
+	var manifest ocispec.Manifest
+	if err := json.NewDecoder(manifestRC).Decode(&manifest); err != nil {
+		return nil, err
+	}
+
+	configRC, err := repo.Fetch(ctx, manifest.Config)
+	if err != nil {
+		return nil, err
+	}
+	defer configRC.Close()
+
+	return io.ReadAll(configRC)
 }

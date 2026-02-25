@@ -48,7 +48,10 @@ func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJ
 		return nil, fmt.Errorf("pushing content layer: %w", err)
 	}
 
-	annotations := buildAnnotations(configJSON, tag)
+	annotations, err := buildAnnotations(configJSON, tag)
+	if err != nil {
+		return nil, fmt.Errorf("building manifest annotations: %w", err)
+	}
 
 	manifest := ocispec.Manifest{
 		Versioned:   specs.Versioned{SchemaVersion: 2},
@@ -107,13 +110,13 @@ func (c *Client) PushPlugin(ctx context.Context, sourceDir, ref string, p Plugin
 // JSON blob and the OCI tag. Name and description are read from the config
 // blob; version comes from the OCI tag (since Version is excluded from the
 // config blob via json:"-").
-func buildAnnotations(configJSON []byte, tag string) map[string]string {
+func buildAnnotations(configJSON []byte, tag string) (map[string]string, error) {
 	var fields struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
 	}
 	if err := json.Unmarshal(configJSON, &fields); err != nil {
-		return nil
+		return nil, fmt.Errorf("parsing config for annotations: %w", err)
 	}
 
 	annotations := make(map[string]string)
@@ -127,7 +130,7 @@ func buildAnnotations(configJSON []byte, tag string) map[string]string {
 		annotations[ocispec.AnnotationDescription] = fields.Description
 	}
 	if len(annotations) == 0 {
-		return nil
+		return nil, nil
 	}
-	return annotations
+	return annotations, nil
 }
