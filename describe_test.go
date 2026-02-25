@@ -583,3 +583,344 @@ func TestDescribeToolchain_Minimal(t *testing.T) {
 		t.Errorf("Homepage = %q, want empty", described.Toolchain.Homepage)
 	}
 }
+
+func TestDescribePlugin_VersionFromTag(t *testing.T) {
+	// Config blob intentionally has no version (json:"-" excludes it).
+	// Verify that the returned Plugin.Version comes from the OCI tag.
+	pluginConfig := Plugin{
+		Name:    "versioned-plugin",
+		Version: "should-be-ignored",
+	}
+	configJSON, _ := json.Marshal(pluginConfig)
+
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-plugins/versioned-plugin": {
+			configJSON:      configJSON,
+			configMediaType: MediaTypePluginConfig,
+			tags:            []string{"v2.5.0"},
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-plugins/versioned-plugin:v2.5.0"
+
+	described, err := client.DescribePlugin(t.Context(), ref)
+	if err != nil {
+		t.Fatalf("DescribePlugin() error = %v", err)
+	}
+
+	if described.Plugin.Version != "v2.5.0" {
+		t.Errorf("Version = %q, want %q (from OCI tag)", described.Plugin.Version, "v2.5.0")
+	}
+}
+
+func TestDescribePlugin_NotFound(t *testing.T) {
+	ts := newArtifactRegistry(map[string]testArtifactEntry{})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-plugins/nonexistent:v1.0.0"
+
+	_, err := client.DescribePlugin(t.Context(), ref)
+	if err == nil {
+		t.Fatal("expected error for non-existent plugin")
+	}
+}
+
+func TestDescribePlugin_InvalidConfigJSON(t *testing.T) {
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-plugins/bad-config": {
+			configJSON:      []byte(`not valid json`),
+			configMediaType: MediaTypePluginConfig,
+			tags:            []string{"v1.0.0"},
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-plugins/bad-config:v1.0.0"
+
+	_, err := client.DescribePlugin(t.Context(), ref)
+	if err == nil {
+		t.Fatal("expected error for invalid config JSON")
+	}
+}
+
+func TestDescribePlugin_WithAllComponents(t *testing.T) {
+	pluginConfig := Plugin{
+		Name:        "full-featured",
+		Description: "A plugin with every component type",
+		Author:      &Author{Name: "Test Author", Email: "test@example.com", URL: "https://example.com"},
+		Homepage:    "https://docs.example.com",
+		SourceRepo:  "https://github.com/example/repo",
+		License:     "MIT",
+		Keywords:    []string{"test", "full", "featured"},
+		Skills:      []string{"alpha", "beta"},
+		Commands:    []string{"cmd-one", "cmd-two", "cmd-three"},
+		Agents:      []string{"agent-a"},
+		HasHooks:    true,
+		MCPServers:  []string{"server-x", "server-y"},
+		LSPServers:  []string{"lsp-z"},
+	}
+	configJSON, _ := json.Marshal(pluginConfig)
+
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-plugins/full-featured": {
+			configJSON:      configJSON,
+			configMediaType: MediaTypePluginConfig,
+			tags:            []string{"v3.0.0"},
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-plugins/full-featured:v3.0.0"
+
+	described, err := client.DescribePlugin(t.Context(), ref)
+	if err != nil {
+		t.Fatalf("DescribePlugin() error = %v", err)
+	}
+
+	p := described.Plugin
+	if p.Name != "full-featured" {
+		t.Errorf("Name = %q", p.Name)
+	}
+	if p.Author.Email != "test@example.com" {
+		t.Errorf("Author.Email = %q", p.Author.Email)
+	}
+	if p.Author.URL != "https://example.com" {
+		t.Errorf("Author.URL = %q", p.Author.URL)
+	}
+	if p.Homepage != "https://docs.example.com" {
+		t.Errorf("Homepage = %q", p.Homepage)
+	}
+	if len(p.Keywords) != 3 {
+		t.Errorf("Keywords = %v, want 3 items", p.Keywords)
+	}
+	if len(p.Commands) != 3 {
+		t.Errorf("Commands = %v, want 3 items", p.Commands)
+	}
+	if len(p.MCPServers) != 2 {
+		t.Errorf("MCPServers = %v, want 2 items", p.MCPServers)
+	}
+	if len(p.LSPServers) != 1 || p.LSPServers[0] != "lsp-z" {
+		t.Errorf("LSPServers = %v, want [lsp-z]", p.LSPServers)
+	}
+}
+
+func TestDescribePersonality_VersionFromTag(t *testing.T) {
+	personalityConfig := Personality{
+		Name:    "versioned",
+		Version: "should-be-ignored",
+		Toolchain: ToolchainReference{
+			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
+			Tag:        "latest",
+		},
+	}
+	configJSON, _ := json.Marshal(personalityConfig)
+
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-personalities/versioned": {
+			configJSON:      configJSON,
+			configMediaType: MediaTypePersonalityConfig,
+			tags:            []string{"v3.1.0"},
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-personalities/versioned:v3.1.0"
+
+	described, err := client.DescribePersonality(t.Context(), ref)
+	if err != nil {
+		t.Fatalf("DescribePersonality() error = %v", err)
+	}
+
+	if described.Personality.Version != "v3.1.0" {
+		t.Errorf("Version = %q, want %q (from OCI tag)", described.Personality.Version, "v3.1.0")
+	}
+}
+
+func TestDescribePersonality_NotFound(t *testing.T) {
+	ts := newArtifactRegistry(map[string]testArtifactEntry{})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-personalities/nonexistent:v1.0.0"
+
+	_, err := client.DescribePersonality(t.Context(), ref)
+	if err == nil {
+		t.Fatal("expected error for non-existent personality")
+	}
+}
+
+func TestDescribePersonality_InvalidConfigJSON(t *testing.T) {
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-personalities/bad": {
+			configJSON:      []byte(`{invalid json}`),
+			configMediaType: MediaTypePersonalityConfig,
+			tags:            []string{"v1.0.0"},
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-personalities/bad:v1.0.0"
+
+	_, err := client.DescribePersonality(t.Context(), ref)
+	if err == nil {
+		t.Fatal("expected error for invalid config JSON")
+	}
+}
+
+func TestDescribePersonality_WithPinnedDeps(t *testing.T) {
+	personalityConfig := Personality{
+		Name:        "program-manager",
+		Description: "Program manager personality",
+		Author:      &Author{Name: "Giant Swarm GmbH"},
+		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
+		License:     "Apache-2.0",
+		Keywords:    []string{"giantswarm", "management"},
+		Toolchain: ToolchainReference{
+			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
+			Tag:        "v1.2.0",
+		},
+		Plugins: []PluginReference{
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base", Tag: "v0.1.0"},
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-godev", Tag: "v0.1.0"},
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-product", Tag: "v0.1.0"},
+		},
+	}
+	configJSON, _ := json.Marshal(personalityConfig)
+
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-personalities/program-manager": {
+			configJSON:      configJSON,
+			configMediaType: MediaTypePersonalityConfig,
+			tags:            []string{"v2.0.0"},
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-personalities/program-manager:v2.0.0"
+
+	described, err := client.DescribePersonality(t.Context(), ref)
+	if err != nil {
+		t.Fatalf("DescribePersonality() error = %v", err)
+	}
+
+	if described.Personality.Version != "v2.0.0" {
+		t.Errorf("Version = %q, want %q", described.Personality.Version, "v2.0.0")
+	}
+	if len(described.Personality.Plugins) != 3 {
+		t.Fatalf("Plugins length = %d, want 3", len(described.Personality.Plugins))
+	}
+	for i, p := range described.Personality.Plugins {
+		if p.Tag != "v0.1.0" {
+			t.Errorf("Plugins[%d].Tag = %q, want %q", i, p.Tag, "v0.1.0")
+		}
+	}
+	if described.Personality.Toolchain.Tag != "v1.2.0" {
+		t.Errorf("Toolchain.Tag = %q, want %q", described.Personality.Toolchain.Tag, "v1.2.0")
+	}
+}
+
+func TestDescribeToolchain_NotFound(t *testing.T) {
+	ts := newArtifactRegistry(map[string]testArtifactEntry{})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-toolchains/nonexistent:v1.0.0"
+
+	_, err := client.DescribeToolchain(t.Context(), ref)
+	if err == nil {
+		t.Fatal("expected error for non-existent toolchain")
+	}
+}
+
+func TestDescribeToolchain_NoAnnotations(t *testing.T) {
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-toolchains/bare": {
+			configJSON:      []byte(`{}`),
+			configMediaType: ocispec.MediaTypeImageConfig,
+			tags:            []string{"v0.1.0"},
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-toolchains/bare:v0.1.0"
+
+	described, err := client.DescribeToolchain(t.Context(), ref)
+	if err != nil {
+		t.Fatalf("DescribeToolchain() error = %v", err)
+	}
+
+	if described.Toolchain.Name != "" {
+		t.Errorf("Name = %q, want empty (no annotations)", described.Toolchain.Name)
+	}
+	if described.Toolchain.Description != "" {
+		t.Errorf("Description = %q, want empty", described.Toolchain.Description)
+	}
+	if described.Toolchain.Author != nil {
+		t.Errorf("Author = %+v, want nil", described.Toolchain.Author)
+	}
+	if described.Toolchain.Version != "v0.1.0" {
+		t.Errorf("Version = %q, want %q (from OCI tag)", described.Toolchain.Version, "v0.1.0")
+	}
+}
+
+func TestDescribeToolchain_VersionFromTag(t *testing.T) {
+	annotations := map[string]string{
+		ocispec.AnnotationTitle:   "go",
+		ocispec.AnnotationVersion: "v999.0.0",
+	}
+
+	ts := newArtifactRegistry(map[string]testArtifactEntry{
+		"giantswarm/klaus-toolchains/go": {
+			configJSON:      []byte(`{}`),
+			configMediaType: ocispec.MediaTypeImageConfig,
+			tags:            []string{"v1.2.0"},
+			annotations:     annotations,
+		},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+	ref := host + "/giantswarm/klaus-toolchains/go:v1.2.0"
+
+	described, err := client.DescribeToolchain(t.Context(), ref)
+	if err != nil {
+		t.Fatalf("DescribeToolchain() error = %v", err)
+	}
+
+	if described.Toolchain.Version != "v1.2.0" {
+		t.Errorf("Version = %q, want %q (from OCI tag, not annotation)", described.Toolchain.Version, "v1.2.0")
+	}
+}
+
+func TestToolchainFromAnnotations_SingleKeyword(t *testing.T) {
+	annotations := map[string]string{
+		ocispec.AnnotationTitle: "test",
+		AnnotationKeywords:      "single",
+	}
+
+	tc := toolchainFromAnnotations(annotations)
+
+	if len(tc.Keywords) != 1 || tc.Keywords[0] != "single" {
+		t.Errorf("Keywords = %v, want [single]", tc.Keywords)
+	}
+}

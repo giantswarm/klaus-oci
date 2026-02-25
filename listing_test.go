@@ -325,11 +325,10 @@ func TestListPluginVersions(t *testing.T) {
 
 	client := NewClient(WithPlainHTTP(true))
 
-	t.Run("short name returns semver tags descending", func(t *testing.T) {
-		versions, err := client.ListPluginVersions(t.Context(), "gs-base",
-		)
+	t.Run("short name with default registry fails for test server", func(t *testing.T) {
+		_, err := client.ListPluginVersions(t.Context(), "gs-base")
 		if err == nil {
-			t.Log("expected error with default registry, got versions:", versions)
+			t.Fatal("expected error when short name resolves to unreachable default registry")
 		}
 	})
 
@@ -350,6 +349,13 @@ func TestListPluginVersions(t *testing.T) {
 		_, err := client.ListPluginVersions(t.Context(), "")
 		if err == nil {
 			t.Fatal("expected error for empty ref")
+		}
+	})
+
+	t.Run("whitespace-only ref returns error", func(t *testing.T) {
+		_, err := client.ListPluginVersions(t.Context(), "   ")
+		if err == nil {
+			t.Fatal("expected error for whitespace-only ref")
 		}
 	})
 }
@@ -444,5 +450,155 @@ func TestExtractNameVersion(t *testing.T) {
 				t.Errorf("version = %q, want %q", version, tt.wantVersion)
 			}
 		})
+	}
+}
+
+func TestSortedSemverTags(t *testing.T) {
+	tests := []struct {
+		name string
+		tags []string
+		want []string
+	}{
+		{
+			name: "multiple versions sorted descending",
+			tags: []string{"v0.1.0", "v1.0.0", "v0.5.0"},
+			want: []string{"v1.0.0", "v0.5.0", "v0.1.0"},
+		},
+		{
+			name: "non-semver tags filtered out",
+			tags: []string{"v1.0.0", "latest", "main", "v0.5.0", "dev"},
+			want: []string{"v1.0.0", "v0.5.0"},
+		},
+		{
+			name: "pre-release before release",
+			tags: []string{"v1.0.0", "v1.1.0-rc.1", "v0.9.0"},
+			want: []string{"v1.1.0-rc.1", "v1.0.0", "v0.9.0"},
+		},
+		{
+			name: "single tag",
+			tags: []string{"v1.0.0"},
+			want: []string{"v1.0.0"},
+		},
+		{
+			name: "no semver tags",
+			tags: []string{"latest", "main"},
+			want: []string{},
+		},
+		{
+			name: "empty input",
+			tags: nil,
+			want: []string{},
+		},
+		{
+			name: "patch versions sorted correctly",
+			tags: []string{"v1.0.2", "v1.0.10", "v1.0.1"},
+			want: []string{"v1.0.10", "v1.0.2", "v1.0.1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sortedSemverTags(tt.tags)
+			if len(got) != len(tt.want) {
+				t.Fatalf("sortedSemverTags() returned %d tags, want %d: %v", len(got), len(tt.want), got)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Errorf("sortedSemverTags()[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestListVersionsSingleTag(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{
+		"giantswarm/klaus-plugins/single": {"v1.0.0"},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	versions, err := client.ListPluginVersions(t.Context(),
+		host+"/giantswarm/klaus-plugins/single",
+	)
+	if err != nil {
+		t.Fatalf("ListPluginVersions() error = %v", err)
+	}
+	if len(versions) != 1 || versions[0] != "v1.0.0" {
+		t.Errorf("ListPluginVersions() = %v, want [v1.0.0]", versions)
+	}
+}
+
+func TestListVersionsPreRelease(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{
+		"giantswarm/klaus-plugins/prerel": {"v1.0.0-alpha.1", "v1.0.0-beta.1", "v1.0.0", "v0.9.0"},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	versions, err := client.ListPluginVersions(t.Context(),
+		host+"/giantswarm/klaus-plugins/prerel",
+	)
+	if err != nil {
+		t.Fatalf("ListPluginVersions() error = %v", err)
+	}
+
+	want := []string{"v1.0.0", "v1.0.0-beta.1", "v1.0.0-alpha.1", "v0.9.0"}
+	if !slices.Equal(versions, want) {
+		t.Errorf("ListPluginVersions() = %v, want %v", versions, want)
+	}
+}
+
+func TestListPersonalities_Empty(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	personalities, err := client.ListPersonalities(t.Context(),
+		WithRegistry(host+"/giantswarm/klaus-personalities"))
+	if err != nil {
+		t.Fatalf("ListPersonalities() error = %v", err)
+	}
+	if len(personalities) != 0 {
+		t.Errorf("expected empty result, got %d", len(personalities))
+	}
+}
+
+func TestListEntry_Fields(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{
+		"giantswarm/klaus-plugins/gs-base": {"v1.0.0"},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	entries, err := client.ListPlugins(t.Context(),
+		WithRegistry(host+"/giantswarm/klaus-plugins"))
+	if err != nil {
+		t.Fatalf("ListPlugins() error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+
+	entry := entries[0]
+	if entry.Name != "gs-base" {
+		t.Errorf("Name = %q, want %q", entry.Name, "gs-base")
+	}
+	if entry.Version != "v1.0.0" {
+		t.Errorf("Version = %q, want %q", entry.Version, "v1.0.0")
+	}
+	if !strings.HasSuffix(entry.Repository, "giantswarm/klaus-plugins/gs-base") {
+		t.Errorf("Repository = %q, want suffix giantswarm/klaus-plugins/gs-base", entry.Repository)
+	}
+	if !strings.HasSuffix(entry.Reference, ":v1.0.0") {
+		t.Errorf("Reference = %q, want suffix :v1.0.0", entry.Reference)
 	}
 }

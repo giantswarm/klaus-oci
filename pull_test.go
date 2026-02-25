@@ -157,3 +157,148 @@ func TestPluginUnmarshal(t *testing.T) {
 		t.Errorf("Skills = %v, want [kubernetes]", p.Plugin.Skills)
 	}
 }
+
+func TestPluginUnmarshal_Full(t *testing.T) {
+	plugin := Plugin{
+		Name:        "full-plugin",
+		Description: "A full-featured plugin",
+		Author:      &Author{Name: "Test", Email: "test@test.com"},
+		SourceRepo:  "https://github.com/test/repo",
+		License:     "MIT",
+		Keywords:    []string{"test"},
+		Skills:      []string{"alpha", "beta"},
+		Commands:    []string{"cmd-a", "cmd-b"},
+		Agents:      []string{"agent-x"},
+		HasHooks:    true,
+		MCPServers:  []string{"mcp-one"},
+		LSPServers:  []string{"lsp-one"},
+	}
+	configJSON, err := json.Marshal(plugin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := &PulledPlugin{
+		ArtifactInfo: ArtifactInfo{Ref: "reg/plugin:v2.0.0", Tag: "v2.0.0", Digest: "sha256:xyz"},
+		Dir:          "/tmp/full",
+	}
+	if err := json.Unmarshal(configJSON, &p.Plugin); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	p.Plugin.Version = "v2.0.0"
+
+	if p.Plugin.Name != "full-plugin" {
+		t.Errorf("Name = %q", p.Plugin.Name)
+	}
+	if p.Plugin.Version != "v2.0.0" {
+		t.Errorf("Version = %q, want %q", p.Plugin.Version, "v2.0.0")
+	}
+	if p.Plugin.Author == nil || p.Plugin.Author.Email != "test@test.com" {
+		t.Errorf("Author = %+v", p.Plugin.Author)
+	}
+	if !p.Plugin.HasHooks {
+		t.Error("HasHooks = false, want true")
+	}
+	if len(p.Plugin.MCPServers) != 1 {
+		t.Errorf("MCPServers = %v", p.Plugin.MCPServers)
+	}
+	if len(p.Plugin.LSPServers) != 1 {
+		t.Errorf("LSPServers = %v", p.Plugin.LSPServers)
+	}
+	if len(p.Plugin.Agents) != 1 {
+		t.Errorf("Agents = %v", p.Plugin.Agents)
+	}
+}
+
+func TestParsePersonalityFromDir_NilConfigJSON(t *testing.T) {
+	dir := t.TempDir()
+
+	result := &pullResult{
+		Digest:     "sha256:nil-config",
+		Ref:        "registry/personalities/no-config:v1.0.0",
+		ConfigJSON: nil,
+	}
+
+	p, err := parsePersonalityFromDir(dir, result.Ref, result)
+	if err != nil {
+		t.Fatalf("parsePersonalityFromDir() error = %v", err)
+	}
+
+	if p.Personality.Name != "" {
+		t.Errorf("Name = %q, want empty (nil ConfigJSON)", p.Personality.Name)
+	}
+	if p.Personality.Version != "v1.0.0" {
+		t.Errorf("Version = %q, want %q (from ref tag)", p.Personality.Version, "v1.0.0")
+	}
+}
+
+func TestParsePersonalityFromDir_WithFullMetadata(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "SOUL.md"), []byte("# SRE Personality\n\nYou are an SRE expert."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	personality := Personality{
+		Name:        "sre",
+		Description: "SRE personality",
+		Author:      &Author{Name: "Giant Swarm GmbH"},
+		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
+		License:     "Apache-2.0",
+		Keywords:    []string{"giantswarm", "sre"},
+		Toolchain: ToolchainReference{
+			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
+			Tag:        "v1.2.0",
+		},
+		Plugins: []PluginReference{
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base", Tag: "v0.1.0"},
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-sre", Tag: "v0.2.0"},
+		},
+	}
+	configJSON, err := json.Marshal(personality)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := &pullResult{
+		Digest:     "sha256:full-meta",
+		Ref:        "registry/personalities/sre:v2.0.0",
+		ConfigJSON: configJSON,
+	}
+
+	p, err := parsePersonalityFromDir(dir, result.Ref, result)
+	if err != nil {
+		t.Fatalf("parsePersonalityFromDir() error = %v", err)
+	}
+
+	if p.Personality.Name != "sre" {
+		t.Errorf("Name = %q", p.Personality.Name)
+	}
+	if p.Personality.Version != "v2.0.0" {
+		t.Errorf("Version = %q, want %q", p.Personality.Version, "v2.0.0")
+	}
+	if p.Personality.Author == nil || p.Personality.Author.Name != "Giant Swarm GmbH" {
+		t.Errorf("Author = %+v", p.Personality.Author)
+	}
+	if p.Personality.License != "Apache-2.0" {
+		t.Errorf("License = %q", p.Personality.License)
+	}
+	if len(p.Personality.Keywords) != 2 {
+		t.Errorf("Keywords = %v", p.Personality.Keywords)
+	}
+	if p.Personality.Toolchain.Repository != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" {
+		t.Errorf("Toolchain.Repository = %q", p.Personality.Toolchain.Repository)
+	}
+	if p.Personality.Toolchain.Tag != "v1.2.0" {
+		t.Errorf("Toolchain.Tag = %q", p.Personality.Toolchain.Tag)
+	}
+	if len(p.Personality.Plugins) != 2 {
+		t.Fatalf("Plugins length = %d, want 2", len(p.Personality.Plugins))
+	}
+	if p.Soul != "# SRE Personality\n\nYou are an SRE expert." {
+		t.Errorf("Soul = %q", p.Soul)
+	}
+	if p.Dir != dir {
+		t.Errorf("Dir = %q, want %q", p.Dir, dir)
+	}
+}

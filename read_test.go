@@ -387,6 +387,266 @@ toolchain:
 	}
 }
 
+func TestReadPersonalityFromDir_WithHomepageAndDigest(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "personality.yaml"), `
+name: production
+description: Production personality with pinned dependencies
+homepage: https://docs.giantswarm.io/klaus/production
+toolchain:
+  repository: gsoci.azurecr.io/giantswarm/klaus-toolchains/go
+  tag: v1.2.0
+plugins:
+  - repository: gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base
+    tag: v0.1.0
+  - repository: gsoci.azurecr.io/giantswarm/klaus-plugins/gs-sre
+    digest: sha256:abcdef1234567890
+`)
+
+	p, err := ReadPersonalityFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPersonalityFromDir() error = %v", err)
+	}
+
+	if p.Homepage != "https://docs.giantswarm.io/klaus/production" {
+		t.Errorf("Homepage = %q", p.Homepage)
+	}
+	if p.Toolchain.Tag != "v1.2.0" {
+		t.Errorf("Toolchain.Tag = %q, want %q", p.Toolchain.Tag, "v1.2.0")
+	}
+	if len(p.Plugins) != 2 {
+		t.Fatalf("Plugins length = %d, want 2", len(p.Plugins))
+	}
+	if p.Plugins[0].Tag != "v0.1.0" {
+		t.Errorf("Plugins[0].Tag = %q, want %q", p.Plugins[0].Tag, "v0.1.0")
+	}
+	if p.Plugins[1].Digest != "sha256:abcdef1234567890" {
+		t.Errorf("Plugins[1].Digest = %q, want %q", p.Plugins[1].Digest, "sha256:abcdef1234567890")
+	}
+}
+
+func TestReadPluginFromDir_EmptyMCPJSON(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{"name":"test"}`)
+	writeFile(t, filepath.Join(dir, ".mcp.json"), `{}`)
+
+	plugin, err := ReadPluginFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPluginFromDir() error = %v", err)
+	}
+
+	if plugin.MCPServers != nil {
+		t.Errorf("MCPServers = %v, want nil for empty JSON object", plugin.MCPServers)
+	}
+}
+
+func TestReadPluginFromDir_MultipleMCPServers(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{"name":"multi-mcp"}`)
+	writeFile(t, filepath.Join(dir, ".mcp.json"), `{
+  "github": {"command": "gh-mcp"},
+  "gitlab": {"command": "gl-mcp"},
+  "jira": {"command": "jira-mcp"}
+}`)
+
+	plugin, err := ReadPluginFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPluginFromDir() error = %v", err)
+	}
+
+	if len(plugin.MCPServers) != 3 {
+		t.Fatalf("MCPServers length = %d, want 3: %v", len(plugin.MCPServers), plugin.MCPServers)
+	}
+	if plugin.MCPServers[0] != "github" || plugin.MCPServers[1] != "gitlab" || plugin.MCPServers[2] != "jira" {
+		t.Errorf("MCPServers = %v, want [github gitlab jira] (sorted)", plugin.MCPServers)
+	}
+}
+
+func TestReadPluginFromDir_NonDirInSkills(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{"name":"test"}`)
+
+	mkdirAll(t, filepath.Join(dir, "skills"))
+	writeFile(t, filepath.Join(dir, "skills", "README.md"), "# Skills")
+	mkdirAll(t, filepath.Join(dir, "skills", "valid"))
+	writeFile(t, filepath.Join(dir, "skills", "valid", "SKILL.md"), "# Valid")
+
+	plugin, err := ReadPluginFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPluginFromDir() error = %v", err)
+	}
+
+	if len(plugin.Skills) != 1 || plugin.Skills[0] != "valid" {
+		t.Errorf("Skills = %v, want [valid] (non-directory entries should be skipped)", plugin.Skills)
+	}
+}
+
+func TestReadPluginFromDir_NonMDInCommands(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{"name":"test"}`)
+
+	writeFile(t, filepath.Join(dir, "commands", "hello.md"), "# Hello")
+	writeFile(t, filepath.Join(dir, "commands", "not-a-command.txt"), "ignored")
+	writeFile(t, filepath.Join(dir, "commands", "init.md"), "# Init")
+
+	plugin, err := ReadPluginFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPluginFromDir() error = %v", err)
+	}
+
+	if len(plugin.Commands) != 2 {
+		t.Fatalf("Commands length = %d, want 2: %v", len(plugin.Commands), plugin.Commands)
+	}
+	if plugin.Commands[0] != "hello" || plugin.Commands[1] != "init" {
+		t.Errorf("Commands = %v, want [hello init] (sorted, non-.md filtered)", plugin.Commands)
+	}
+}
+
+func TestReadPluginFromDir_InvalidLSPJSON(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{"name":"test"}`)
+	writeFile(t, filepath.Join(dir, ".lsp.json"), `not valid json`)
+
+	plugin, err := ReadPluginFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPluginFromDir() error = %v", err)
+	}
+
+	if plugin.LSPServers != nil {
+		t.Errorf("LSPServers = %v, want nil for invalid JSON", plugin.LSPServers)
+	}
+}
+
+func TestReadPluginFromDir_WithAuthorDetails(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{
+  "name": "detailed-author",
+  "author": {
+    "name": "Test Author",
+    "email": "test@example.com",
+    "url": "https://example.com"
+  }
+}`)
+
+	plugin, err := ReadPluginFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPluginFromDir() error = %v", err)
+	}
+
+	if plugin.Author == nil {
+		t.Fatal("Author is nil, want non-nil")
+	}
+	if plugin.Author.Name != "Test Author" {
+		t.Errorf("Author.Name = %q", plugin.Author.Name)
+	}
+	if plugin.Author.Email != "test@example.com" {
+		t.Errorf("Author.Email = %q", plugin.Author.Email)
+	}
+	if plugin.Author.URL != "https://example.com" {
+		t.Errorf("Author.URL = %q", plugin.Author.URL)
+	}
+}
+
+func TestReadPluginFromDir_OnlyAgents(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{
+  "name": "agents-only",
+  "description": "A plugin with only agents"
+}`)
+	writeFile(t, filepath.Join(dir, "agents", "code-architect.md"), "# Code Architect")
+	writeFile(t, filepath.Join(dir, "agents", "code-explorer.md"), "# Code Explorer")
+	writeFile(t, filepath.Join(dir, "agents", "code-reviewer.md"), "# Code Reviewer")
+
+	plugin, err := ReadPluginFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPluginFromDir() error = %v", err)
+	}
+
+	if len(plugin.Agents) != 3 {
+		t.Fatalf("Agents length = %d, want 3: %v", len(plugin.Agents), plugin.Agents)
+	}
+	expected := []string{"code-architect", "code-explorer", "code-reviewer"}
+	for i, want := range expected {
+		if plugin.Agents[i] != want {
+			t.Errorf("Agents[%d] = %q, want %q", i, plugin.Agents[i], want)
+		}
+	}
+	if plugin.Skills != nil {
+		t.Errorf("Skills = %v, want nil", plugin.Skills)
+	}
+	if plugin.Commands != nil {
+		t.Errorf("Commands = %v, want nil", plugin.Commands)
+	}
+}
+
+func TestReadPersonalityFromDir_AllMetadata(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "personality.yaml"), `
+name: full
+description: A fully specified personality
+author:
+  name: Giant Swarm GmbH
+  email: support@giantswarm.io
+  url: https://giantswarm.io
+homepage: https://docs.giantswarm.io/klaus/
+repository: https://github.com/giantswarm/klaus-personalities
+license: Apache-2.0
+keywords:
+  - giantswarm
+  - kubernetes
+  - platform
+  - full
+toolchain:
+  repository: gsoci.azurecr.io/giantswarm/klaus-toolchains/go
+  tag: v1.2.0
+plugins:
+  - repository: gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base
+    tag: v0.1.0
+`)
+
+	p, err := ReadPersonalityFromDir(dir)
+	if err != nil {
+		t.Fatalf("ReadPersonalityFromDir() error = %v", err)
+	}
+
+	if p.Name != "full" {
+		t.Errorf("Name = %q", p.Name)
+	}
+	if p.Description != "A fully specified personality" {
+		t.Errorf("Description = %q", p.Description)
+	}
+	if p.Author == nil {
+		t.Fatal("Author is nil")
+	}
+	if p.Author.Name != "Giant Swarm GmbH" {
+		t.Errorf("Author.Name = %q", p.Author.Name)
+	}
+	if p.Author.Email != "support@giantswarm.io" {
+		t.Errorf("Author.Email = %q", p.Author.Email)
+	}
+	if p.Author.URL != "https://giantswarm.io" {
+		t.Errorf("Author.URL = %q", p.Author.URL)
+	}
+	if p.Homepage != "https://docs.giantswarm.io/klaus/" {
+		t.Errorf("Homepage = %q", p.Homepage)
+	}
+	if p.SourceRepo != "https://github.com/giantswarm/klaus-personalities" {
+		t.Errorf("SourceRepo = %q", p.SourceRepo)
+	}
+	if p.License != "Apache-2.0" {
+		t.Errorf("License = %q", p.License)
+	}
+	if len(p.Keywords) != 4 {
+		t.Errorf("Keywords length = %d, want 4: %v", len(p.Keywords), p.Keywords)
+	}
+	if p.Toolchain.Repository != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" {
+		t.Errorf("Toolchain.Repository = %q", p.Toolchain.Repository)
+	}
+	if p.Version != "" {
+		t.Errorf("Version = %q, want empty", p.Version)
+	}
+}
+
 // setupFullPlugin creates a complete plugin directory structure with all
 // component types for testing ReadPluginFromDir.
 func setupFullPlugin(t *testing.T, dir string) {
