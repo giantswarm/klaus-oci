@@ -2,10 +2,12 @@ package oci
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/Masterminds/semver/v3"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -164,4 +166,76 @@ func extractNameVersion(a listedArtifact) (name, version string) {
 	name = ShortName(a.Repository)
 	_, version = SplitNameTag(a.Reference)
 	return name, version
+}
+
+// ListPluginVersions returns all semver tags for a plugin, sorted descending.
+// nameOrRef can be a short name (e.g. "gs-base") or a full OCI repository path.
+func (c *Client) ListPluginVersions(ctx context.Context, nameOrRef string) ([]string, error) {
+	return c.listVersions(ctx, nameOrRef, DefaultPluginRegistry)
+}
+
+// ListPersonalityVersions returns all semver tags for a personality, sorted descending.
+// nameOrRef can be a short name (e.g. "sre") or a full OCI repository path.
+func (c *Client) ListPersonalityVersions(ctx context.Context, nameOrRef string) ([]string, error) {
+	return c.listVersions(ctx, nameOrRef, DefaultPersonalityRegistry)
+}
+
+// ListToolchainVersions returns all semver tags for a toolchain, sorted descending.
+// nameOrRef can be a short name (e.g. "go") or a full OCI repository path.
+func (c *Client) ListToolchainVersions(ctx context.Context, nameOrRef string) ([]string, error) {
+	return c.listVersions(ctx, nameOrRef, DefaultToolchainRegistry)
+}
+
+// listVersions lists all semver tags for a single artifact, sorted descending.
+// Short names (no "/") are expanded using the given registry base.
+func (c *Client) listVersions(ctx context.Context, nameOrRef, registryBase string) ([]string, error) {
+	nameOrRef = strings.TrimSpace(nameOrRef)
+	if nameOrRef == "" {
+		return nil, fmt.Errorf("empty artifact reference")
+	}
+
+	repo := nameOrRef
+	if !strings.Contains(nameOrRef, "/") {
+		repo = registryBase + "/" + nameOrRef
+	}
+
+	tags, err := c.List(ctx, repo)
+	if err != nil {
+		return nil, fmt.Errorf("listing versions for %s: %w", repo, err)
+	}
+
+	return sortedSemverTags(tags), nil
+}
+
+// sortedSemverTags filters tags to valid semver and sorts them descending.
+func sortedSemverTags(tags []string) []string {
+	type parsed struct {
+		tag string
+		ver *semver.Version
+	}
+
+	var versions []parsed
+	for _, tag := range tags {
+		v, err := semver.NewVersion(tag)
+		if err != nil {
+			continue
+		}
+		versions = append(versions, parsed{tag: tag, ver: v})
+	}
+
+	slices.SortFunc(versions, func(a, b parsed) int {
+		if a.ver.GreaterThan(b.ver) {
+			return -1
+		}
+		if b.ver.GreaterThan(a.ver) {
+			return 1
+		}
+		return 0
+	})
+
+	result := make([]string, len(versions))
+	for i, v := range versions {
+		result[i] = v.tag
+	}
+	return result
 }

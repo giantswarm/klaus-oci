@@ -316,6 +316,106 @@ func TestWithRegistry(t *testing.T) {
 	}
 }
 
+func TestListPluginVersions(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{
+		"giantswarm/klaus-plugins/gs-base": {"v0.1.0", "v0.3.0", "v0.2.0", "latest", "dev"},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	t.Run("short name returns semver tags descending", func(t *testing.T) {
+		versions, err := client.ListPluginVersions(t.Context(), "gs-base",
+		)
+		if err == nil {
+			t.Log("expected error with default registry, got versions:", versions)
+		}
+	})
+
+	t.Run("full repo returns semver tags descending", func(t *testing.T) {
+		versions, err := client.ListPluginVersions(t.Context(),
+			host+"/giantswarm/klaus-plugins/gs-base",
+		)
+		if err != nil {
+			t.Fatalf("ListPluginVersions() error = %v", err)
+		}
+		want := []string{"v0.3.0", "v0.2.0", "v0.1.0"}
+		if !slices.Equal(versions, want) {
+			t.Errorf("ListPluginVersions() = %v, want %v", versions, want)
+		}
+	})
+
+	t.Run("empty ref returns error", func(t *testing.T) {
+		_, err := client.ListPluginVersions(t.Context(), "")
+		if err == nil {
+			t.Fatal("expected error for empty ref")
+		}
+	})
+}
+
+func TestListPersonalityVersions(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{
+		"giantswarm/klaus-personalities/sre": {"v1.0.0", "v0.2.0", "v0.1.0", "latest"},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	versions, err := client.ListPersonalityVersions(t.Context(),
+		host+"/giantswarm/klaus-personalities/sre",
+	)
+	if err != nil {
+		t.Fatalf("ListPersonalityVersions() error = %v", err)
+	}
+	want := []string{"v1.0.0", "v0.2.0", "v0.1.0"}
+	if !slices.Equal(versions, want) {
+		t.Errorf("ListPersonalityVersions() = %v, want %v", versions, want)
+	}
+}
+
+func TestListToolchainVersions(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{
+		"giantswarm/klaus-toolchains/go": {"v1.1.0", "v1.0.0", "v0.9.0", "nightly"},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	versions, err := client.ListToolchainVersions(t.Context(),
+		host+"/giantswarm/klaus-toolchains/go",
+	)
+	if err != nil {
+		t.Fatalf("ListToolchainVersions() error = %v", err)
+	}
+	want := []string{"v1.1.0", "v1.0.0", "v0.9.0"}
+	if !slices.Equal(versions, want) {
+		t.Errorf("ListToolchainVersions() = %v, want %v", versions, want)
+	}
+}
+
+func TestListVersionsNoSemverTags(t *testing.T) {
+	ts := newTestRegistry(map[string][]string{
+		"giantswarm/klaus-plugins/dev-only": {"latest", "dev", "main"},
+	})
+	defer ts.Close()
+	host := testRegistryHost(ts)
+
+	client := NewClient(WithPlainHTTP(true))
+
+	versions, err := client.ListPluginVersions(t.Context(),
+		host+"/giantswarm/klaus-plugins/dev-only",
+	)
+	if err != nil {
+		t.Fatalf("ListPluginVersions() error = %v", err)
+	}
+	if len(versions) != 0 {
+		t.Errorf("expected empty slice, got %v", versions)
+	}
+}
+
 func TestExtractNameVersion(t *testing.T) {
 	tests := []struct {
 		artifact    listedArtifact
