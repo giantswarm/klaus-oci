@@ -7,19 +7,19 @@ import (
 func TestArtifactKinds(t *testing.T) {
 	tests := []struct {
 		name            string
-		kind            ArtifactKind
+		kind            artifactKind
 		wantConfigType  string
 		wantContentType string
 	}{
 		{
-			name:            "PluginArtifact has correct media types",
-			kind:            PluginArtifact,
+			name:            "pluginArtifact has correct media types",
+			kind:            pluginArtifact,
 			wantConfigType:  "application/vnd.giantswarm.klaus-plugin.config.v1+json",
 			wantContentType: "application/vnd.giantswarm.klaus-plugin.content.v1.tar+gzip",
 		},
 		{
-			name:            "PersonalityArtifact has correct media types",
-			kind:            PersonalityArtifact,
+			name:            "personalityArtifact has correct media types",
+			kind:            personalityArtifact,
 			wantConfigType:  "application/vnd.giantswarm.klaus-personality.config.v1+json",
 			wantContentType: "application/vnd.giantswarm.klaus-personality.content.v1.tar+gzip",
 		},

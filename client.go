@@ -30,7 +30,7 @@ func WithPlainHTTP(plain bool) ClientOption {
 }
 
 // WithConcurrency sets the maximum number of concurrent registry operations
-// for batch methods like ListArtifacts. Defaults to 10.
+// for batch listing methods. Defaults to 10.
 func WithConcurrency(n int) ClientOption {
 	return func(c *Client) {
 		if n > 0 {
@@ -80,18 +80,9 @@ func (c *Client) Resolve(ctx context.Context, ref string) (string, error) {
 	return desc.Digest.String(), nil
 }
 
-// ListRepositories queries the OCI registry catalog to find all repositories
-// under the given base path. The base path format is
-// "registry.example.com/org/prefix" (e.g.,
-// "gsoci.azurecr.io/giantswarm/klaus-plugins"). Returns fully-qualified
-// repository references (e.g.,
-// "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base").
-//
-// The catalog is queried using a seek position to skip repositories that
-// sort before the prefix, and enumeration stops as soon as a page is
-// encountered where all entries sort after the prefix. This makes the
-// operation significantly faster on large registries.
-func (c *Client) ListRepositories(ctx context.Context, registryBase string) ([]string, error) {
+// listRepositories queries the OCI registry catalog to find all repositories
+// under the given base path.
+func (c *Client) listRepositories(ctx context.Context, registryBase string) ([]string, error) {
 	host, prefix := SplitRegistryBase(registryBase)
 
 	reg, err := remote.NewRegistry(host)

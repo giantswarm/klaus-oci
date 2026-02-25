@@ -17,6 +17,9 @@ type CacheEntry struct {
 	Ref string `json:"ref"`
 	// PulledAt is when the artifact was last pulled.
 	PulledAt time.Time `json:"pulledAt"`
+	// ConfigJSON is the raw OCI config blob, persisted so that metadata
+	// remains available on cache hits without re-fetching.
+	ConfigJSON json.RawMessage `json:"configJSON,omitempty"`
 }
 
 // IsCached returns true if the directory has a cache entry matching the given
