@@ -12,9 +12,10 @@ import (
 )
 
 // push packages a directory and pushes it to an OCI registry as a Klaus artifact.
-// The configJSON should be a marshaled Plugin or Personality (depending on kind).
-// The ref must include a tag (e.g. "registry.example.com/repo:v1.0.0").
-func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJSON []byte, kind artifactKind) (*PushResult, error) {
+// The configJSON is the marshaled type-specific config blob (pluginConfigBlob or
+// personalityConfigBlob). The annotations map carries common metadata and is set
+// directly on the manifest.
+func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJSON []byte, annotations map[string]string, kind artifactKind) (*PushResult, error) {
 	repo, tag, err := c.newRepository(ref)
 	if err != nil {
 		return nil, err
@@ -48,11 +49,6 @@ func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJ
 		return nil, fmt.Errorf("pushing content layer: %w", err)
 	}
 
-	annotations, err := buildAnnotations(configJSON, tag)
-	if err != nil {
-		return nil, fmt.Errorf("building manifest annotations: %w", err)
-	}
-
 	manifest := ocispec.Manifest{
 		Versioned:   specs.Versioned{SchemaVersion: 2},
 		MediaType:   ocispec.MediaTypeImageManifest,
@@ -83,54 +79,37 @@ func (c *Client) push(ctx context.Context, sourceDir string, ref string, configJ
 }
 
 // PushPersonality pushes a personality artifact to an OCI registry.
-// The Personality struct is marshaled to JSON as the config blob (Version
-// is excluded via json:"-"). The version is conveyed through the OCI tag
-// in the ref parameter.
+// Common metadata (name, description, author, etc.) is stored as Klaus
+// annotations on the manifest. The config blob contains only composition
+// data (toolchain + plugins). Version is conveyed through the OCI tag.
 func (c *Client) PushPersonality(ctx context.Context, sourceDir, ref string, p Personality) (*PushResult, error) {
-	configJSON, err := json.Marshal(p)
+	blob := personalityConfigBlob{
+		Toolchain: p.Toolchain,
+		Plugins:   p.Plugins,
+	}
+	configJSON, err := json.Marshal(blob)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling personality config: %w", err)
 	}
-	return c.push(ctx, sourceDir, ref, configJSON, personalityArtifact)
+	return c.push(ctx, sourceDir, ref, configJSON, buildKlausAnnotations(p.klausMetadata()), personalityArtifact)
 }
 
 // PushPlugin pushes a plugin artifact to an OCI registry.
-// The Plugin struct is marshaled to JSON as the config blob (Version
-// is excluded via json:"-"). The version is conveyed through the OCI tag
-// in the ref parameter.
+// Common metadata (name, description, author, etc.) is stored as Klaus
+// annotations on the manifest. The config blob contains only discovered
+// components (skills, commands, etc.). Version is conveyed through the OCI tag.
 func (c *Client) PushPlugin(ctx context.Context, sourceDir, ref string, p Plugin) (*PushResult, error) {
-	configJSON, err := json.Marshal(p)
+	blob := pluginConfigBlob{
+		Skills:     p.Skills,
+		Commands:   p.Commands,
+		Agents:     p.Agents,
+		HasHooks:   p.HasHooks,
+		MCPServers: p.MCPServers,
+		LSPServers: p.LSPServers,
+	}
+	configJSON, err := json.Marshal(blob)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling plugin config: %w", err)
 	}
-	return c.push(ctx, sourceDir, ref, configJSON, pluginArtifact)
-}
-
-// buildAnnotations creates standard OCI manifest annotations from a config
-// JSON blob and the OCI tag. Name and description are read from the config
-// blob; version comes from the OCI tag (since Version is excluded from the
-// config blob via json:"-").
-func buildAnnotations(configJSON []byte, tag string) (map[string]string, error) {
-	var fields struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}
-	if err := json.Unmarshal(configJSON, &fields); err != nil {
-		return nil, fmt.Errorf("parsing config for annotations: %w", err)
-	}
-
-	annotations := make(map[string]string)
-	if fields.Name != "" {
-		annotations[ocispec.AnnotationTitle] = fields.Name
-	}
-	if tag != "" {
-		annotations[ocispec.AnnotationVersion] = tag
-	}
-	if fields.Description != "" {
-		annotations[ocispec.AnnotationDescription] = fields.Description
-	}
-	if len(annotations) == 0 {
-		return nil, nil
-	}
-	return annotations, nil
+	return c.push(ctx, sourceDir, ref, configJSON, buildKlausAnnotations(p.klausMetadata()), pluginArtifact)
 }

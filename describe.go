@@ -5,15 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/registry/remote"
 )
-
-// AnnotationKeywords is the custom annotation key for comma-separated
-// keyword metadata on toolchain images.
-const AnnotationKeywords = "io.giantswarm.keywords"
 
 // DescribePlugin fetches the config blob for a plugin artifact and returns
 // metadata without downloading the content layer. The ref parameter supports
@@ -34,11 +29,12 @@ func (c *Client) DescribePlugin(ctx context.Context, ref string) (*DescribedPlug
 		return nil, err
 	}
 
-	var plugin Plugin
-	if err := json.Unmarshal(configJSON, &plugin); err != nil {
+	var blob pluginConfigBlob
+	if err := json.Unmarshal(configJSON, &blob); err != nil {
 		return nil, fmt.Errorf("parsing plugin config for %s: %w", resolved, err)
 	}
-	plugin.Version = fm.tag
+
+	plugin := pluginFromAnnotations(fm.manifest.Annotations, fm.tag, blob)
 
 	return &DescribedPlugin{
 		ArtifactInfo: ArtifactInfo{Ref: resolved, Tag: fm.tag, Digest: fm.digest},
@@ -65,11 +61,12 @@ func (c *Client) DescribePersonality(ctx context.Context, ref string) (*Describe
 		return nil, err
 	}
 
-	var personality Personality
-	if err := json.Unmarshal(configJSON, &personality); err != nil {
+	var blob personalityConfigBlob
+	if err := json.Unmarshal(configJSON, &blob); err != nil {
 		return nil, fmt.Errorf("parsing personality config for %s: %w", resolved, err)
 	}
-	personality.Version = fm.tag
+
+	personality := personalityFromAnnotations(fm.manifest.Annotations, fm.tag, blob)
 
 	return &DescribedPersonality{
 		ArtifactInfo: ArtifactInfo{Ref: resolved, Tag: fm.tag, Digest: fm.digest},
@@ -158,27 +155,4 @@ func fetchConfigBlob(ctx context.Context, repo *remote.Repository, ref string, d
 		return nil, fmt.Errorf("reading config for %s: %w", ref, err)
 	}
 	return data, nil
-}
-
-// toolchainFromAnnotations maps OCI manifest annotations into a Toolchain
-// struct. Missing annotations result in zero-value fields. The Version
-// field is not set here -- it is populated from the OCI tag by the caller.
-func toolchainFromAnnotations(annotations map[string]string) Toolchain {
-	t := Toolchain{
-		Name:        annotations[ocispec.AnnotationTitle],
-		Description: annotations[ocispec.AnnotationDescription],
-		Homepage:    annotations[ocispec.AnnotationURL],
-		SourceRepo:  annotations[ocispec.AnnotationSource],
-		License:     annotations[ocispec.AnnotationLicenses],
-	}
-
-	if authors := annotations[ocispec.AnnotationAuthors]; authors != "" {
-		t.Author = &Author{Name: authors}
-	}
-
-	if kw := annotations[AnnotationKeywords]; kw != "" {
-		t.Keywords = strings.Split(kw, ",")
-	}
-
-	return t
 }

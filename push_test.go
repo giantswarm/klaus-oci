@@ -3,122 +3,222 @@ package oci
 import (
 	"encoding/json"
 	"testing"
-
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func TestBuildAnnotations(t *testing.T) {
-	t.Run("full metadata", func(t *testing.T) {
-		configJSON := []byte(`{"name":"test","description":"A test"}`)
-		annotations, err := buildAnnotations(configJSON, "v1.0.0")
-		if err != nil {
-			t.Fatalf("buildAnnotations() error = %v", err)
-		}
+func TestPluginConfigBlob_ExcludesCommonMetadata(t *testing.T) {
+	p := Plugin{
+		Name:        "gs-base",
+		Version:     "v1.0.0",
+		Description: "A base plugin",
+		Author:      &Author{Name: "Giant Swarm", Email: "dev@giantswarm.io"},
+		Homepage:    "https://giantswarm.io",
+		SourceRepo:  "https://github.com/giantswarm/gs-base",
+		License:     "Apache-2.0",
+		Keywords:    []string{"platform", "base"},
+		Skills:      []string{"kubernetes", "fluxcd"},
+		Commands:    []string{"init", "deploy"},
+		Agents:      []string{"code-reviewer"},
+		HasHooks:    true,
+		MCPServers:  []string{"github"},
+		LSPServers:  []string{"gopls"},
+	}
 
-		if annotations[ocispec.AnnotationTitle] != "test" {
-			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "test")
-		}
-		if annotations[ocispec.AnnotationVersion] != "v1.0.0" {
-			t.Errorf("version = %q, want %q", annotations[ocispec.AnnotationVersion], "v1.0.0")
-		}
-		if annotations[ocispec.AnnotationDescription] != "A test" {
-			t.Errorf("description = %q, want %q", annotations[ocispec.AnnotationDescription], "A test")
-		}
-	})
+	blob := pluginConfigBlob{
+		Skills:     p.Skills,
+		Commands:   p.Commands,
+		Agents:     p.Agents,
+		HasHooks:   p.HasHooks,
+		MCPServers: p.MCPServers,
+		LSPServers: p.LSPServers,
+	}
 
-	t.Run("version from tag not config", func(t *testing.T) {
-		configJSON := []byte(`{"name":"test"}`)
-		annotations, err := buildAnnotations(configJSON, "v2.0.0")
-		if err != nil {
-			t.Fatalf("buildAnnotations() error = %v", err)
-		}
+	data, err := json.Marshal(blob)
+	if err != nil {
+		t.Fatalf("json.Marshal(pluginConfigBlob) error = %v", err)
+	}
 
-		if annotations[ocispec.AnnotationVersion] != "v2.0.0" {
-			t.Errorf("version = %q, want %q", annotations[ocispec.AnnotationVersion], "v2.0.0")
-		}
-	})
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("json.Unmarshal error = %v", err)
+	}
 
-	t.Run("empty metadata", func(t *testing.T) {
-		configJSON := []byte(`{}`)
-		annotations, err := buildAnnotations(configJSON, "")
-		if err != nil {
-			t.Fatalf("buildAnnotations() error = %v", err)
+	for _, forbidden := range []string{"name", "description", "author", "homepage", "repository", "license", "keywords"} {
+		if _, ok := raw[forbidden]; ok {
+			t.Errorf("config blob should not contain %q, but it does", forbidden)
 		}
-		if annotations != nil {
-			t.Errorf("expected nil annotations for empty config and tag, got %v", annotations)
-		}
-	})
+	}
 
-	t.Run("invalid JSON", func(t *testing.T) {
-		_, err := buildAnnotations([]byte("not json"), "v1.0.0")
-		if err == nil {
-			t.Fatal("expected error for invalid JSON")
+	for _, expected := range []string{"skills", "commands", "agents", "hasHooks", "mcpServers", "lspServers"} {
+		if _, ok := raw[expected]; !ok {
+			t.Errorf("config blob should contain %q, but it does not", expected)
 		}
-	})
+	}
+}
 
-	t.Run("plugin config blob with version excluded", func(t *testing.T) {
-		plugin := Plugin{
-			Name:        "gs-base",
-			Version:     "should-not-appear",
-			Description: "A base plugin",
-		}
-		configJSON, _ := json.Marshal(plugin)
+func TestPluginConfigBlob_EmptyComponents(t *testing.T) {
+	blob := pluginConfigBlob{}
+	data, err := json.Marshal(blob)
+	if err != nil {
+		t.Fatalf("json.Marshal error = %v", err)
+	}
+	if string(data) != "{}" {
+		t.Errorf("empty pluginConfigBlob = %s, want {}", data)
+	}
+}
 
-		annotations, err := buildAnnotations(configJSON, "v1.0.0")
-		if err != nil {
-			t.Fatalf("buildAnnotations() error = %v", err)
-		}
+func TestPersonalityConfigBlob_ExcludesCommonMetadata(t *testing.T) {
+	p := Personality{
+		Name:        "sre",
+		Description: "SRE personality",
+		Author:      &Author{Name: "Giant Swarm"},
+		Homepage:    "https://giantswarm.io",
+		SourceRepo:  "https://github.com/giantswarm/sre",
+		License:     "Apache-2.0",
+		Keywords:    []string{"sre", "ops"},
+		Toolchain: ToolchainReference{
+			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
+			Tag:        "v1.0.0",
+		},
+		Plugins: []PluginReference{
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base", Tag: "v1.0.0"},
+		},
+	}
 
-		if annotations[ocispec.AnnotationTitle] != "gs-base" {
-			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "gs-base")
-		}
-		if annotations[ocispec.AnnotationVersion] != "v1.0.0" {
-			t.Errorf("version = %q, want %q (from tag)", annotations[ocispec.AnnotationVersion], "v1.0.0")
-		}
-		if annotations[ocispec.AnnotationDescription] != "A base plugin" {
-			t.Errorf("description = %q, want %q", annotations[ocispec.AnnotationDescription], "A base plugin")
-		}
-	})
+	blob := personalityConfigBlob{
+		Toolchain: p.Toolchain,
+		Plugins:   p.Plugins,
+	}
 
-	t.Run("personality config blob", func(t *testing.T) {
-		personality := Personality{
-			Name:        "sre",
-			Description: "SRE personality",
-			Toolchain: ToolchainReference{
-				Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
-				Tag:        "latest",
-			},
-		}
-		configJSON, _ := json.Marshal(personality)
+	data, err := json.Marshal(blob)
+	if err != nil {
+		t.Fatalf("json.Marshal(personalityConfigBlob) error = %v", err)
+	}
 
-		annotations, err := buildAnnotations(configJSON, "v2.0.0")
-		if err != nil {
-			t.Fatalf("buildAnnotations() error = %v", err)
-		}
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("json.Unmarshal error = %v", err)
+	}
 
-		if annotations[ocispec.AnnotationTitle] != "sre" {
-			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "sre")
+	for _, forbidden := range []string{"name", "description", "author", "homepage", "repository", "license", "keywords"} {
+		if _, ok := raw[forbidden]; ok {
+			t.Errorf("config blob should not contain %q, but it does", forbidden)
 		}
-		if annotations[ocispec.AnnotationVersion] != "v2.0.0" {
-			t.Errorf("version = %q, want %q", annotations[ocispec.AnnotationVersion], "v2.0.0")
-		}
-		if annotations[ocispec.AnnotationDescription] != "SRE personality" {
-			t.Errorf("description = %q", annotations[ocispec.AnnotationDescription])
-		}
-	})
+	}
 
-	t.Run("name only", func(t *testing.T) {
-		configJSON := []byte(`{"name":"minimal"}`)
-		annotations, err := buildAnnotations(configJSON, "v1.0.0")
-		if err != nil {
-			t.Fatalf("buildAnnotations() error = %v", err)
-		}
+	if _, ok := raw["toolchain"]; !ok {
+		t.Error("config blob should contain toolchain")
+	}
+	if _, ok := raw["plugins"]; !ok {
+		t.Error("config blob should contain plugins")
+	}
+}
 
-		if annotations[ocispec.AnnotationTitle] != "minimal" {
-			t.Errorf("title = %q, want %q", annotations[ocispec.AnnotationTitle], "minimal")
+func TestPersonalityConfigBlob_EmptyComposition(t *testing.T) {
+	blob := personalityConfigBlob{}
+	data, err := json.Marshal(blob)
+	if err != nil {
+		t.Fatalf("json.Marshal error = %v", err)
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("json.Unmarshal error = %v", err)
+	}
+
+	for _, forbidden := range []string{"name", "description", "author", "homepage", "license", "keywords"} {
+		if _, ok := raw[forbidden]; ok {
+			t.Errorf("empty config blob should not contain %q", forbidden)
 		}
-		if _, ok := annotations[ocispec.AnnotationDescription]; ok {
-			t.Errorf("description should not be present, got %q", annotations[ocispec.AnnotationDescription])
+	}
+
+	if _, ok := raw["plugins"]; ok {
+		t.Error("empty config blob should omit nil plugins")
+	}
+}
+
+func TestPushPlugin_AnnotationsFromMetadata(t *testing.T) {
+	p := Plugin{
+		Name:        "gs-base",
+		Description: "Giant Swarm base plugin",
+		Author:      &Author{Name: "Giant Swarm", Email: "dev@giantswarm.io", URL: "https://giantswarm.io"},
+		Homepage:    "https://giantswarm.io/plugins/gs-base",
+		SourceRepo:  "https://github.com/giantswarm/gs-base",
+		License:     "Apache-2.0",
+		Keywords:    []string{"platform", "base"},
+		Skills:      []string{"kubernetes"},
+	}
+
+	annotations := buildKlausAnnotations(p.klausMetadata())
+
+	expected := map[string]string{
+		AnnotationName:        "gs-base",
+		AnnotationDescription: "Giant Swarm base plugin",
+		AnnotationAuthorName:  "Giant Swarm",
+		AnnotationAuthorEmail: "dev@giantswarm.io",
+		AnnotationAuthorURL:   "https://giantswarm.io",
+		AnnotationHomepage:    "https://giantswarm.io/plugins/gs-base",
+		AnnotationRepository:  "https://github.com/giantswarm/gs-base",
+		AnnotationLicense:     "Apache-2.0",
+		AnnotationKeywords:    "platform,base",
+	}
+
+	for k, want := range expected {
+		if got := annotations[k]; got != want {
+			t.Errorf("annotation %s = %q, want %q", k, got, want)
 		}
-	})
+	}
+
+	if len(annotations) != len(expected) {
+		t.Errorf("got %d annotations, want %d", len(annotations), len(expected))
+	}
+}
+
+func TestPushPersonality_AnnotationsFromMetadata(t *testing.T) {
+	p := Personality{
+		Name:        "sre",
+		Description: "SRE personality",
+		Author:      &Author{Name: "Giant Swarm"},
+		Toolchain: ToolchainReference{
+			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
+			Tag:        "v1.0.0",
+		},
+	}
+
+	annotations := buildKlausAnnotations(p.klausMetadata())
+
+	if annotations[AnnotationName] != "sre" {
+		t.Errorf("name = %q, want %q", annotations[AnnotationName], "sre")
+	}
+	if annotations[AnnotationDescription] != "SRE personality" {
+		t.Errorf("description = %q, want %q", annotations[AnnotationDescription], "SRE personality")
+	}
+	if annotations[AnnotationAuthorName] != "Giant Swarm" {
+		t.Errorf("author.name = %q, want %q", annotations[AnnotationAuthorName], "Giant Swarm")
+	}
+
+	for _, absent := range []string{AnnotationHomepage, AnnotationRepository, AnnotationLicense, AnnotationKeywords, AnnotationAuthorEmail, AnnotationAuthorURL} {
+		if _, ok := annotations[absent]; ok {
+			t.Errorf("annotation %s should not be present for empty field", absent)
+		}
+	}
+}
+
+func TestPushPlugin_MinimalMetadata(t *testing.T) {
+	p := Plugin{Name: "minimal"}
+
+	annotations := buildKlausAnnotations(p.klausMetadata())
+
+	if annotations[AnnotationName] != "minimal" {
+		t.Errorf("name = %q, want %q", annotations[AnnotationName], "minimal")
+	}
+	if len(annotations) != 1 {
+		t.Errorf("got %d annotations, want 1 (name only)", len(annotations))
+	}
+}
+
+func TestPushPlugin_NoMetadata(t *testing.T) {
+	annotations := buildKlausAnnotations(commonMetadata{})
+	if annotations != nil {
+		t.Errorf("expected nil annotations for empty metadata, got %v", annotations)
+	}
 }

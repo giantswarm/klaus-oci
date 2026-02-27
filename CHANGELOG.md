@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ResolveToolchainRef` no longer uses `"klaus-"` name prefix.
 - `ListRepositories` now uses the catalog `last` parameter to seek past repositories that sort before the target prefix and stops early once past it, avoiding full catalog scans on large registries (921 repos down to 1-2 pages).
 - Replace generic `Pull`/`Push`/`ListArtifacts` API with typed facade: consumers now use `PullPersonality`, `PullPlugin`, `PushPersonality`, `PushPlugin`, `ListPersonalities`, `ListPlugins`, `ListToolchains` instead of interacting with raw OCI concepts.
+- **BREAKING**: Common metadata (name, description, author, homepage, repository, license, keywords) moved from OCI config blobs into `io.giantswarm.klaus.*` manifest annotations for plugins and personalities. Config blobs now contain only type-specific data: discovered components for plugins and composition (toolchain + plugin references) for personalities. Existing artifacts need re-pushing.
+- **BREAKING**: Toolchain annotations switched from `org.opencontainers.image.*` to `io.giantswarm.klaus.*` namespace. Existing toolchain images need to be re-built with the new labels.
+- **BREAKING**: Cache entries now include manifest annotations. Old cached artifacts without the `Annotations` field will lose common metadata until re-pulled.
+- Replace `buildAnnotations` (which parsed metadata from the config blob) with `buildKlausAnnotations` (which accepts structured `commonMetadata`).
+- Replace `ocispec.AnnotationVersion` references in tests with inline string literals; no `ocispec.Annotation*` constants remain in the codebase.
+- Add `klausMetadata()` methods on `Plugin` and `Personality` to extract common metadata without manual field copying.
+- Trim whitespace from comma-separated keywords when parsing annotations.
 
 ### Removed
 

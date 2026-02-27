@@ -8,7 +8,11 @@ type Author struct {
 }
 
 // Plugin represents a Klaus plugin.
-// Most fields are serialized as JSON in the OCI config blob.
+// Common metadata (name, description, author, etc.) is stored as
+// io.giantswarm.klaus.* manifest annotations in the OCI registry.
+// Only type-specific fields are stored in the OCI config blob.
+// JSON tags on metadata fields are retained for display serialization
+// (CLI output, API responses); OCI storage uses pluginConfigBlob.
 //
 // The first group of fields comes directly from .claude-plugin/plugin.json
 // and aligns with the Claude Code plugin manifest schema:
@@ -52,8 +56,24 @@ type Plugin struct {
 	LSPServers []string `json:"lspServers,omitempty"`
 }
 
+func (p Plugin) klausMetadata() commonMetadata {
+	return commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	}
+}
+
 // Personality represents a Klaus personality.
-// Most fields are serialized as JSON in the OCI config blob.
+// Common metadata (name, description, author, etc.) is stored as
+// io.giantswarm.klaus.* manifest annotations in the OCI registry.
+// Only composition fields (toolchain + plugins) are stored in the
+// OCI config blob. JSON tags on metadata fields are retained for
+// display serialization; OCI storage uses personalityConfigBlob.
 //
 // Personalities are Giant Swarm's composition layer: they combine a
 // toolchain (container image), a set of plugins, and a behavioral
@@ -62,12 +82,10 @@ type Plugin struct {
 // Unlike plugins (where the manifest format is defined by upstream
 // Claude Code), the personality definition format is our own. The
 // on-disk source is personality.yaml (YAML) + SOUL.md (Markdown).
-// At push time these are read and serialized as JSON into the OCI
-// config blob (excluding Version, which is conveyed via the OCI tag).
 //
 // Fields are grouped by origin:
-//   - Metadata: from personality.yaml
-//   - Composition: from personality.yaml (toolchain + plugins)
+//   - Metadata: from personality.yaml (stored as OCI manifest annotations)
+//   - Composition: from personality.yaml (stored in OCI config blob)
 //   - Version: from OCI tags (not in personality.yaml, not in config blob)
 type Personality struct {
 	// --- Metadata (from personality.yaml) ---
@@ -95,20 +113,25 @@ type Personality struct {
 	Version string `yaml:"-" json:"-"`
 }
 
+func (p Personality) klausMetadata() commonMetadata {
+	return commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	}
+}
+
 // Toolchain represents a Klaus toolchain (container image).
 // Derived from OCI manifest annotations since toolchains are
 // standard Docker images, not custom OCI artifacts.
 //
 // Fields mirror the metadata fields of Plugin and Personality for
-// consistency. Each field maps to a standard OCI annotation:
-//
-//	Name        -> org.opencontainers.image.title
-//	Description -> org.opencontainers.image.description
-//	Author      -> org.opencontainers.image.authors (parsed as name string)
-//	Homepage    -> org.opencontainers.image.url
-//	SourceRepo  -> org.opencontainers.image.source
-//	License     -> org.opencontainers.image.licenses
-//	Keywords    -> io.giantswarm.keywords (custom, comma-separated)
+// consistency. Each field maps to a Klaus annotation (io.giantswarm.klaus.*),
+// parsed via metadataFromAnnotations.
 //
 // Version is populated from the OCI tag, same as Plugin and Personality.
 type Toolchain struct {
@@ -234,10 +257,29 @@ type PushResult struct {
 	Digest string
 }
 
+// pluginConfigBlob is the OCI config blob schema for plugins.
+// Only type-specific fields; common metadata lives in manifest annotations.
+type pluginConfigBlob struct {
+	Skills     []string `json:"skills,omitempty"`
+	Commands   []string `json:"commands,omitempty"`
+	Agents     []string `json:"agents,omitempty"`
+	HasHooks   bool     `json:"hasHooks,omitempty"`
+	MCPServers []string `json:"mcpServers,omitempty"`
+	LSPServers []string `json:"lspServers,omitempty"`
+}
+
+// personalityConfigBlob is the OCI config blob schema for personalities.
+// Only composition fields; common metadata lives in manifest annotations.
+type personalityConfigBlob struct {
+	Toolchain ToolchainReference `json:"toolchain,omitempty"`
+	Plugins   []PluginReference  `json:"plugins,omitempty"`
+}
+
 // pullResult holds the result of a successful internal pull operation.
 type pullResult struct {
-	Digest     string
-	Ref        string
-	Cached     bool
-	ConfigJSON []byte // Raw OCI config blob (read from cache entry on cache hit).
+	Digest      string
+	Ref         string
+	Cached      bool
+	ConfigJSON  []byte            // Raw OCI config blob (read from cache entry on cache hit).
+	Annotations map[string]string // OCI manifest annotations (persisted in cache).
 }

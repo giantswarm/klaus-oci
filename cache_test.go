@@ -8,11 +8,16 @@ import (
 func TestCache_WriteAndRead(t *testing.T) {
 	dir := t.TempDir()
 
-	configJSON := json.RawMessage(`{"name":"test","version":"1.0.0"}`)
+	configJSON := json.RawMessage(`{"skills":["kubernetes"]}`)
+	annotations := map[string]string{
+		"io.giantswarm.klaus.name":        "test",
+		"io.giantswarm.klaus.description": "a test artifact",
+	}
 	entry := CacheEntry{
-		Digest:     "sha256:abc123def456",
-		Ref:        "registry.example.com/test:v1.0.0",
-		ConfigJSON: configJSON,
+		Digest:      "sha256:abc123def456",
+		Ref:         "registry.example.com/test:v1.0.0",
+		ConfigJSON:  configJSON,
+		Annotations: annotations,
 	}
 
 	if err := WriteCacheEntry(dir, entry); err != nil {
@@ -33,15 +38,19 @@ func TestCache_WriteAndRead(t *testing.T) {
 	if got.PulledAt.IsZero() {
 		t.Error("PulledAt should be set")
 	}
-	var gotConfig, wantConfig map[string]interface{}
+	var gotConfig map[string]interface{}
 	if err := json.Unmarshal(got.ConfigJSON, &gotConfig); err != nil {
 		t.Fatalf("unmarshal got ConfigJSON: %v", err)
 	}
-	if err := json.Unmarshal(configJSON, &wantConfig); err != nil {
-		t.Fatalf("unmarshal want ConfigJSON: %v", err)
+	gotSkills, ok := gotConfig["skills"].([]interface{})
+	if !ok || len(gotSkills) != 1 || gotSkills[0] != "kubernetes" {
+		t.Errorf("ConfigJSON skills mismatch: got %v", gotConfig)
 	}
-	if gotConfig["name"] != wantConfig["name"] || gotConfig["version"] != wantConfig["version"] {
-		t.Errorf("ConfigJSON fields mismatch: got %v, want %v", gotConfig, wantConfig)
+	if got.Annotations["io.giantswarm.klaus.name"] != "test" {
+		t.Errorf("Annotations[name] = %q, want %q", got.Annotations["io.giantswarm.klaus.name"], "test")
+	}
+	if got.Annotations["io.giantswarm.klaus.description"] != "a test artifact" {
+		t.Errorf("Annotations[description] = %q, want %q", got.Annotations["io.giantswarm.klaus.description"], "a test artifact")
 	}
 }
 

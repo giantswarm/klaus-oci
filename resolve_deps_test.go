@@ -9,25 +9,25 @@ import (
 )
 
 func TestResolvePersonalityDeps(t *testing.T) {
-	pluginBaseConfig := Plugin{
+	pluginBaseBlob := pluginConfigBlob{Skills: []string{"kubernetes", "fluxcd"}}
+	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
+	pluginBaseAnnotations := buildKlausAnnotations(commonMetadata{
 		Name:        "gs-base",
 		Description: "Base plugin",
 		Author:      &Author{Name: "Giant Swarm GmbH"},
-		Skills:      []string{"kubernetes", "fluxcd"},
-	}
-	pluginBaseJSON, _ := json.Marshal(pluginBaseConfig)
+	})
 
-	pluginSREConfig := Plugin{
+	pluginSREBlob := pluginConfigBlob{Commands: []string{"check-cluster"}}
+	pluginSREJSON, _ := json.Marshal(pluginSREBlob)
+	pluginSREAnnotations := buildKlausAnnotations(commonMetadata{
 		Name:        "gs-sre",
 		Description: "SRE plugin",
-		Commands:    []string{"check-cluster"},
-	}
-	pluginSREJSON, _ := json.Marshal(pluginSREConfig)
+	})
 
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain for Klaus",
-		ocispec.AnnotationAuthors:     "Giant Swarm GmbH",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain for Klaus",
+		AnnotationAuthorName:  "Giant Swarm GmbH",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -35,11 +35,13 @@ func TestResolvePersonalityDeps(t *testing.T) {
 			configJSON:      pluginBaseJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginBaseAnnotations,
 		},
 		"giantswarm/klaus-plugins/gs-sre": {
 			configJSON:      pluginSREJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v0.5.0"},
+			annotations:     pluginSREAnnotations,
 		},
 		"giantswarm/klaus-toolchains/go": {
 			configJSON:      []byte(`{"architecture":"amd64"}`),
@@ -108,15 +110,16 @@ func TestResolvePersonalityDeps(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
-	pluginBaseConfig := Plugin{
+	pluginBaseBlob := pluginConfigBlob{}
+	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
+	pluginBaseAnnotations := buildKlausAnnotations(commonMetadata{
 		Name:        "gs-base",
 		Description: "Base plugin",
-	}
-	pluginBaseJSON, _ := json.Marshal(pluginBaseConfig)
+	})
 
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -124,6 +127,7 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 			configJSON:      pluginBaseJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginBaseAnnotations,
 		},
 		"giantswarm/klaus-toolchains/go": {
 			configJSON:      []byte(`{}`),
@@ -171,16 +175,16 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
-	pluginConfig := Plugin{
-		Name: "gs-base",
-	}
-	pluginJSON, _ := json.Marshal(pluginConfig)
+	pluginBlob := pluginConfigBlob{}
+	pluginJSON, _ := json.Marshal(pluginBlob)
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: "gs-base"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginAnnotations,
 		},
 	})
 	defer ts.Close()
@@ -221,8 +225,8 @@ func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
 
 func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -266,16 +270,16 @@ func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_EmptyToolchain(t *testing.T) {
-	pluginConfig := Plugin{
-		Name: "gs-base",
-	}
-	pluginJSON, _ := json.Marshal(pluginConfig)
+	pluginBlob := pluginConfigBlob{}
+	pluginJSON, _ := json.Marshal(pluginBlob)
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: "gs-base"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginAnnotations,
 		},
 	})
 	defer ts.Close()
@@ -308,7 +312,7 @@ func TestResolvePersonalityDeps_EmptyToolchain(t *testing.T) {
 
 func TestResolvePersonalityDeps_AllPluginsMissing(t *testing.T) {
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle: "go",
+		AnnotationName: "go",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -377,17 +381,19 @@ func TestResolvePersonalityDeps_Empty(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
-	pluginConfig := Plugin{
+	pluginBlob := pluginConfigBlob{}
+	pluginJSON, _ := json.Marshal(pluginBlob)
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{
 		Name:        "gs-base",
 		Description: "Base plugin",
-	}
-	pluginJSON, _ := json.Marshal(pluginConfig)
+	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v2.3.0"},
+			annotations:     pluginAnnotations,
 		},
 	})
 	defer ts.Close()
@@ -420,8 +426,8 @@ func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
 
 func TestResolvePersonalityDeps_ToolchainVersionFromTag(t *testing.T) {
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
