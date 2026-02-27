@@ -240,12 +240,14 @@ func TestDescribePlugin(t *testing.T) {
 		MCPServers: []string{"github"},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations(
-		"gs-base", "A general purpose plugin",
-		&Author{Name: "Giant Swarm GmbH"},
-		"", "https://github.com/giantswarm/claude-code",
-		"Apache-2.0", []string{"giantswarm", "platform"},
-	)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        "gs-base",
+		Description: "A general purpose plugin",
+		Author:      &Author{Name: "Giant Swarm GmbH"},
+		SourceRepo:  "https://github.com/giantswarm/claude-code",
+		License:     "Apache-2.0",
+		Keywords:    []string{"giantswarm", "platform"},
+	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
@@ -315,7 +317,7 @@ func TestDescribePlugin_Minimal(t *testing.T) {
 		Commands: []string{"commit", "push", "pr"},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("commit-commands", "", nil, "", "", "", nil)
+	annotations := buildKlausAnnotations(commonMetadata{Name: "commit-commands"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/commit-commands": {
@@ -362,12 +364,14 @@ func TestDescribePersonality(t *testing.T) {
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations(
-		"sre", "SRE personality",
-		&Author{Name: "Giant Swarm GmbH"},
-		"", "https://github.com/giantswarm/klaus-personalities",
-		"Apache-2.0", []string{"giantswarm", "sre", "kubernetes"},
-	)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        "sre",
+		Description: "SRE personality",
+		Author:      &Author{Name: "Giant Swarm GmbH"},
+		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
+		License:     "Apache-2.0",
+		Keywords:    []string{"giantswarm", "sre", "kubernetes"},
+	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/sre": {
@@ -443,7 +447,7 @@ func TestDescribePersonality_Minimal(t *testing.T) {
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("go", "", nil, "", "", "", nil)
+	annotations := buildKlausAnnotations(commonMetadata{Name: "go"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/go": {
@@ -591,7 +595,7 @@ func TestDescribeToolchain_Minimal(t *testing.T) {
 func TestDescribePlugin_VersionFromTag(t *testing.T) {
 	blob := pluginConfigBlob{}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("versioned-plugin", "", nil, "", "", "", nil)
+	annotations := buildKlausAnnotations(commonMetadata{Name: "versioned-plugin"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/versioned-plugin": {
@@ -661,12 +665,15 @@ func TestDescribePlugin_WithAllComponents(t *testing.T) {
 		LSPServers: []string{"lsp-z"},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations(
-		"full-featured", "A plugin with every component type",
-		&Author{Name: "Test Author", Email: "test@example.com", URL: "https://example.com"},
-		"https://docs.example.com", "https://github.com/example/repo",
-		"MIT", []string{"test", "full", "featured"},
-	)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        "full-featured",
+		Description: "A plugin with every component type",
+		Author:      &Author{Name: "Test Author", Email: "test@example.com", URL: "https://example.com"},
+		Homepage:    "https://docs.example.com",
+		SourceRepo:  "https://github.com/example/repo",
+		License:     "MIT",
+		Keywords:    []string{"test", "full", "featured"},
+	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/full-featured": {
@@ -722,7 +729,7 @@ func TestDescribePersonality_VersionFromTag(t *testing.T) {
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("versioned", "", nil, "", "", "", nil)
+	annotations := buildKlausAnnotations(commonMetadata{Name: "versioned"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/versioned": {
@@ -795,12 +802,14 @@ func TestDescribePersonality_WithPinnedDeps(t *testing.T) {
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations(
-		"program-manager", "Program manager personality",
-		&Author{Name: "Giant Swarm GmbH"},
-		"", "https://github.com/giantswarm/klaus-personalities",
-		"Apache-2.0", []string{"giantswarm", "management"},
-	)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        "program-manager",
+		Description: "Program manager personality",
+		Author:      &Author{Name: "Giant Swarm GmbH"},
+		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
+		License:     "Apache-2.0",
+		Keywords:    []string{"giantswarm", "management"},
+	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/program-manager": {

@@ -11,11 +11,18 @@ import (
 func TestResolvePersonalityDeps(t *testing.T) {
 	pluginBaseBlob := pluginConfigBlob{Skills: []string{"kubernetes", "fluxcd"}}
 	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
-	pluginBaseAnnotations := buildKlausAnnotations("gs-base", "Base plugin", &Author{Name: "Giant Swarm GmbH"}, "", "", "", nil)
+	pluginBaseAnnotations := buildKlausAnnotations(commonMetadata{
+		Name:        "gs-base",
+		Description: "Base plugin",
+		Author:      &Author{Name: "Giant Swarm GmbH"},
+	})
 
 	pluginSREBlob := pluginConfigBlob{Commands: []string{"check-cluster"}}
 	pluginSREJSON, _ := json.Marshal(pluginSREBlob)
-	pluginSREAnnotations := buildKlausAnnotations("gs-sre", "SRE plugin", nil, "", "", "", nil)
+	pluginSREAnnotations := buildKlausAnnotations(commonMetadata{
+		Name:        "gs-sre",
+		Description: "SRE plugin",
+	})
 
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
@@ -105,7 +112,10 @@ func TestResolvePersonalityDeps(t *testing.T) {
 func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 	pluginBaseBlob := pluginConfigBlob{}
 	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
-	pluginBaseAnnotations := buildKlausAnnotations("gs-base", "Base plugin", nil, "", "", "", nil)
+	pluginBaseAnnotations := buildKlausAnnotations(commonMetadata{
+		Name:        "gs-base",
+		Description: "Base plugin",
+	})
 
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
@@ -167,7 +177,7 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
 	pluginBlob := pluginConfigBlob{}
 	pluginJSON, _ := json.Marshal(pluginBlob)
-	pluginAnnotations := buildKlausAnnotations("gs-base", "", nil, "", "", "", nil)
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: "gs-base"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
@@ -262,7 +272,7 @@ func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 func TestResolvePersonalityDeps_EmptyToolchain(t *testing.T) {
 	pluginBlob := pluginConfigBlob{}
 	pluginJSON, _ := json.Marshal(pluginBlob)
-	pluginAnnotations := buildKlausAnnotations("gs-base", "", nil, "", "", "", nil)
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: "gs-base"})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
@@ -373,7 +383,10 @@ func TestResolvePersonalityDeps_Empty(t *testing.T) {
 func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
 	pluginBlob := pluginConfigBlob{}
 	pluginJSON, _ := json.Marshal(pluginBlob)
-	pluginAnnotations := buildKlausAnnotations("gs-base", "Base plugin", nil, "", "", "", nil)
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{
+		Name:        "gs-base",
+		Description: "Base plugin",
+	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {

@@ -91,7 +91,15 @@ func (c *Client) PushPersonality(ctx context.Context, sourceDir, ref string, p P
 	if err != nil {
 		return nil, fmt.Errorf("marshaling personality config: %w", err)
 	}
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	})
 	return c.push(ctx, sourceDir, ref, configJSON, annotations, personalityArtifact)
 }
 
@@ -112,6 +120,14 @@ func (c *Client) PushPlugin(ctx context.Context, sourceDir, ref string, p Plugin
 	if err != nil {
 		return nil, fmt.Errorf("marshaling plugin config: %w", err)
 	}
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	})
 	return c.push(ctx, sourceDir, ref, configJSON, annotations, pluginArtifact)
 }

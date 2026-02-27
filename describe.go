@@ -34,24 +34,7 @@ func (c *Client) DescribePlugin(ctx context.Context, ref string) (*DescribedPlug
 		return nil, fmt.Errorf("parsing plugin config for %s: %w", resolved, err)
 	}
 
-	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(fm.manifest.Annotations)
-
-	plugin := Plugin{
-		Name:        name,
-		Description: description,
-		Author:      author,
-		Homepage:    homepage,
-		SourceRepo:  sourceRepo,
-		License:     license,
-		Keywords:    keywords,
-		Version:     fm.tag,
-		Skills:      blob.Skills,
-		Commands:    blob.Commands,
-		Agents:      blob.Agents,
-		HasHooks:    blob.HasHooks,
-		MCPServers:  blob.MCPServers,
-		LSPServers:  blob.LSPServers,
-	}
+	plugin := pluginFromAnnotations(fm.manifest.Annotations, fm.tag, blob)
 
 	return &DescribedPlugin{
 		ArtifactInfo: ArtifactInfo{Ref: resolved, Tag: fm.tag, Digest: fm.digest},
@@ -83,20 +66,7 @@ func (c *Client) DescribePersonality(ctx context.Context, ref string) (*Describe
 		return nil, fmt.Errorf("parsing personality config for %s: %w", resolved, err)
 	}
 
-	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(fm.manifest.Annotations)
-
-	personality := Personality{
-		Name:        name,
-		Description: description,
-		Author:      author,
-		Homepage:    homepage,
-		SourceRepo:  sourceRepo,
-		License:     license,
-		Keywords:    keywords,
-		Version:     fm.tag,
-		Toolchain:   blob.Toolchain,
-		Plugins:     blob.Plugins,
-	}
+	personality := personalityFromAnnotations(fm.manifest.Annotations, fm.tag, blob)
 
 	return &DescribedPersonality{
 		ArtifactInfo: ArtifactInfo{Ref: resolved, Tag: fm.tag, Digest: fm.digest},

@@ -148,7 +148,15 @@ func TestPushPlugin_AnnotationsFromMetadata(t *testing.T) {
 		Skills:      []string{"kubernetes"},
 	}
 
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	})
 
 	expected := map[string]string{
 		AnnotationName:        "gs-base",
@@ -184,7 +192,15 @@ func TestPushPersonality_AnnotationsFromMetadata(t *testing.T) {
 		},
 	}
 
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	})
 
 	if annotations[AnnotationName] != "sre" {
 		t.Errorf("name = %q, want %q", annotations[AnnotationName], "sre")
@@ -206,7 +222,9 @@ func TestPushPersonality_AnnotationsFromMetadata(t *testing.T) {
 func TestPushPlugin_MinimalMetadata(t *testing.T) {
 	p := Plugin{Name: "minimal"}
 
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
+	annotations := buildKlausAnnotations(commonMetadata{
+		Name: p.Name,
+	})
 
 	if annotations[AnnotationName] != "minimal" {
 		t.Errorf("name = %q, want %q", annotations[AnnotationName], "minimal")
@@ -217,9 +235,8 @@ func TestPushPlugin_MinimalMetadata(t *testing.T) {
 }
 
 func TestPushPlugin_NoMetadata(t *testing.T) {
-	p := Plugin{}
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
+	annotations := buildKlausAnnotations(commonMetadata{})
 	if annotations != nil {
-		t.Errorf("expected nil annotations for empty plugin, got %v", annotations)
+		t.Errorf("expected nil annotations for empty metadata, got %v", annotations)
 	}
 }

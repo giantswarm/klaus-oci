@@ -17,39 +17,52 @@ const (
 	AnnotationAuthorURL   = "io.giantswarm.klaus.author.url"
 )
 
+// commonMetadata holds the shared metadata fields that all Klaus artifact
+// types (plugins, personalities, toolchains) carry via OCI manifest
+// annotations. Using a struct avoids error-prone positional parameters.
+type commonMetadata struct {
+	Name        string
+	Description string
+	Author      *Author
+	Homepage    string
+	SourceRepo  string
+	License     string
+	Keywords    []string
+}
+
 // buildKlausAnnotations builds an OCI manifest annotation map from common
 // metadata fields. Only non-empty fields produce annotations. Returns nil
 // when all fields are empty.
-func buildKlausAnnotations(name, description string, author *Author, homepage, sourceRepo, license string, keywords []string) map[string]string {
+func buildKlausAnnotations(m commonMetadata) map[string]string {
 	annotations := make(map[string]string)
 
-	if name != "" {
-		annotations[AnnotationName] = name
+	if m.Name != "" {
+		annotations[AnnotationName] = m.Name
 	}
-	if description != "" {
-		annotations[AnnotationDescription] = description
+	if m.Description != "" {
+		annotations[AnnotationDescription] = m.Description
 	}
-	if homepage != "" {
-		annotations[AnnotationHomepage] = homepage
+	if m.Homepage != "" {
+		annotations[AnnotationHomepage] = m.Homepage
 	}
-	if sourceRepo != "" {
-		annotations[AnnotationRepository] = sourceRepo
+	if m.SourceRepo != "" {
+		annotations[AnnotationRepository] = m.SourceRepo
 	}
-	if license != "" {
-		annotations[AnnotationLicense] = license
+	if m.License != "" {
+		annotations[AnnotationLicense] = m.License
 	}
-	if len(keywords) > 0 {
-		annotations[AnnotationKeywords] = strings.Join(keywords, ",")
+	if len(m.Keywords) > 0 {
+		annotations[AnnotationKeywords] = strings.Join(m.Keywords, ",")
 	}
-	if author != nil {
-		if author.Name != "" {
-			annotations[AnnotationAuthorName] = author.Name
+	if m.Author != nil {
+		if m.Author.Name != "" {
+			annotations[AnnotationAuthorName] = m.Author.Name
 		}
-		if author.Email != "" {
-			annotations[AnnotationAuthorEmail] = author.Email
+		if m.Author.Email != "" {
+			annotations[AnnotationAuthorEmail] = m.Author.Email
 		}
-		if author.URL != "" {
-			annotations[AnnotationAuthorURL] = author.URL
+		if m.Author.URL != "" {
+			annotations[AnnotationAuthorURL] = m.Author.URL
 		}
 	}
 
@@ -61,39 +74,81 @@ func buildKlausAnnotations(name, description string, author *Author, homepage, s
 
 // metadataFromAnnotations parses Klaus manifest annotations back into
 // common metadata fields. Missing annotation keys result in zero values.
-func metadataFromAnnotations(annotations map[string]string) (name, description string, author *Author, homepage, sourceRepo, license string, keywords []string) {
-	name = annotations[AnnotationName]
-	description = annotations[AnnotationDescription]
-	homepage = annotations[AnnotationHomepage]
-	sourceRepo = annotations[AnnotationRepository]
-	license = annotations[AnnotationLicense]
+func metadataFromAnnotations(annotations map[string]string) commonMetadata {
+	m := commonMetadata{
+		Name:        annotations[AnnotationName],
+		Description: annotations[AnnotationDescription],
+		Homepage:    annotations[AnnotationHomepage],
+		SourceRepo:  annotations[AnnotationRepository],
+		License:     annotations[AnnotationLicense],
+	}
 
 	if kw := annotations[AnnotationKeywords]; kw != "" {
-		keywords = strings.Split(kw, ",")
+		m.Keywords = strings.Split(kw, ",")
 	}
 
 	authorName := annotations[AnnotationAuthorName]
 	authorEmail := annotations[AnnotationAuthorEmail]
 	authorURL := annotations[AnnotationAuthorURL]
 	if authorName != "" || authorEmail != "" || authorURL != "" {
-		author = &Author{Name: authorName, Email: authorEmail, URL: authorURL}
+		m.Author = &Author{Name: authorName, Email: authorEmail, URL: authorURL}
 	}
 
-	return
+	return m
+}
+
+// pluginFromAnnotations assembles a Plugin from OCI manifest annotations
+// (common metadata) and a config blob (type-specific fields).
+func pluginFromAnnotations(annotations map[string]string, tag string, blob pluginConfigBlob) Plugin {
+	m := metadataFromAnnotations(annotations)
+	return Plugin{
+		Name:        m.Name,
+		Description: m.Description,
+		Author:      m.Author,
+		Homepage:    m.Homepage,
+		SourceRepo:  m.SourceRepo,
+		License:     m.License,
+		Keywords:    m.Keywords,
+		Version:     tag,
+		Skills:      blob.Skills,
+		Commands:    blob.Commands,
+		Agents:      blob.Agents,
+		HasHooks:    blob.HasHooks,
+		MCPServers:  blob.MCPServers,
+		LSPServers:  blob.LSPServers,
+	}
+}
+
+// personalityFromAnnotations assembles a Personality from OCI manifest
+// annotations (common metadata) and a config blob (composition fields).
+func personalityFromAnnotations(annotations map[string]string, tag string, blob personalityConfigBlob) Personality {
+	m := metadataFromAnnotations(annotations)
+	return Personality{
+		Name:        m.Name,
+		Description: m.Description,
+		Author:      m.Author,
+		Homepage:    m.Homepage,
+		SourceRepo:  m.SourceRepo,
+		License:     m.License,
+		Keywords:    m.Keywords,
+		Version:     tag,
+		Toolchain:   blob.Toolchain,
+		Plugins:     blob.Plugins,
+	}
 }
 
 // toolchainFromAnnotations maps OCI manifest annotations into a Toolchain
 // struct. Missing annotations result in zero-value fields. The Version
 // field is not set here -- it is populated from the OCI tag by the caller.
 func toolchainFromAnnotations(annotations map[string]string) Toolchain {
-	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(annotations)
+	m := metadataFromAnnotations(annotations)
 	return Toolchain{
-		Name:        name,
-		Description: description,
-		Author:      author,
-		Homepage:    homepage,
-		SourceRepo:  sourceRepo,
-		License:     license,
-		Keywords:    keywords,
+		Name:        m.Name,
+		Description: m.Description,
+		Author:      m.Author,
+		Homepage:    m.Homepage,
+		SourceRepo:  m.SourceRepo,
+		License:     m.License,
+		Keywords:    m.Keywords,
 	}
 }

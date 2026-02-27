@@ -139,71 +139,28 @@ func TestParsePersonalityFromDir_NoFiles(t *testing.T) {
 	}
 }
 
-func TestPluginFromPullResult(t *testing.T) {
-	blob := pluginConfigBlob{
-		Skills: []string{"kubernetes"},
-	}
-	configJSON, err := json.Marshal(blob)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func TestPluginFromAnnotations(t *testing.T) {
 	annotations := map[string]string{
 		AnnotationName: "gs-platform",
 	}
-
-	result := &pullResult{
-		Digest:      "sha256:abc",
-		Ref:         "reg/plugin:v1",
-		ConfigJSON:  configJSON,
-		Annotations: annotations,
+	blob := pluginConfigBlob{
+		Skills: []string{"kubernetes"},
 	}
 
-	_, tag := SplitNameTag(result.Ref)
-	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(result.Annotations)
-	p := &PulledPlugin{
-		ArtifactInfo: ArtifactInfo{Ref: result.Ref, Tag: tag, Digest: result.Digest},
-		Dir:          "/tmp/plugin",
-	}
-	p.Plugin = Plugin{
-		Name:        name,
-		Version:     tag,
-		Description: description,
-		Author:      author,
-		Homepage:    homepage,
-		SourceRepo:  sourceRepo,
-		License:     license,
-		Keywords:    keywords,
-	}
+	plugin := pluginFromAnnotations(annotations, "v1", blob)
 
-	var b pluginConfigBlob
-	if err := json.Unmarshal(result.ConfigJSON, &b); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	if plugin.Name != "gs-platform" {
+		t.Errorf("Name = %q, want %q", plugin.Name, "gs-platform")
 	}
-	p.Plugin.Skills = b.Skills
-
-	if p.Plugin.Name != "gs-platform" {
-		t.Errorf("Name = %q, want %q", p.Plugin.Name, "gs-platform")
+	if plugin.Version != "v1" {
+		t.Errorf("Version = %q, want %q", plugin.Version, "v1")
 	}
-	if len(p.Plugin.Skills) != 1 || p.Plugin.Skills[0] != "kubernetes" {
-		t.Errorf("Skills = %v, want [kubernetes]", p.Plugin.Skills)
+	if len(plugin.Skills) != 1 || plugin.Skills[0] != "kubernetes" {
+		t.Errorf("Skills = %v, want [kubernetes]", plugin.Skills)
 	}
 }
 
-func TestPluginFromPullResult_Full(t *testing.T) {
-	blob := pluginConfigBlob{
-		Skills:     []string{"alpha", "beta"},
-		Commands:   []string{"cmd-a", "cmd-b"},
-		Agents:     []string{"agent-x"},
-		HasHooks:   true,
-		MCPServers: []string{"mcp-one"},
-		LSPServers: []string{"lsp-one"},
-	}
-	configJSON, err := json.Marshal(blob)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func TestPluginFromAnnotations_Full(t *testing.T) {
 	annotations := map[string]string{
 		AnnotationName:        "full-plugin",
 		AnnotationDescription: "A full-featured plugin",
@@ -213,62 +170,37 @@ func TestPluginFromPullResult_Full(t *testing.T) {
 		AnnotationLicense:     "MIT",
 		AnnotationKeywords:    "test",
 	}
-
-	result := &pullResult{
-		Digest:      "sha256:xyz",
-		Ref:         "reg/plugin:v2.0.0",
-		ConfigJSON:  configJSON,
-		Annotations: annotations,
+	blob := pluginConfigBlob{
+		Skills:     []string{"alpha", "beta"},
+		Commands:   []string{"cmd-a", "cmd-b"},
+		Agents:     []string{"agent-x"},
+		HasHooks:   true,
+		MCPServers: []string{"mcp-one"},
+		LSPServers: []string{"lsp-one"},
 	}
 
-	_, tag := SplitNameTag(result.Ref)
-	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(result.Annotations)
-	p := &PulledPlugin{
-		ArtifactInfo: ArtifactInfo{Ref: result.Ref, Tag: tag, Digest: result.Digest},
-		Dir:          "/tmp/full",
-	}
-	p.Plugin = Plugin{
-		Name:        name,
-		Version:     tag,
-		Description: description,
-		Author:      author,
-		Homepage:    homepage,
-		SourceRepo:  sourceRepo,
-		License:     license,
-		Keywords:    keywords,
-	}
+	plugin := pluginFromAnnotations(annotations, "v2.0.0", blob)
 
-	var b pluginConfigBlob
-	if err := json.Unmarshal(result.ConfigJSON, &b); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	if plugin.Name != "full-plugin" {
+		t.Errorf("Name = %q", plugin.Name)
 	}
-	p.Plugin.Skills = b.Skills
-	p.Plugin.Commands = b.Commands
-	p.Plugin.Agents = b.Agents
-	p.Plugin.HasHooks = b.HasHooks
-	p.Plugin.MCPServers = b.MCPServers
-	p.Plugin.LSPServers = b.LSPServers
-
-	if p.Plugin.Name != "full-plugin" {
-		t.Errorf("Name = %q", p.Plugin.Name)
+	if plugin.Version != "v2.0.0" {
+		t.Errorf("Version = %q, want %q", plugin.Version, "v2.0.0")
 	}
-	if p.Plugin.Version != "v2.0.0" {
-		t.Errorf("Version = %q, want %q", p.Plugin.Version, "v2.0.0")
+	if plugin.Author == nil || plugin.Author.Email != "test@test.com" {
+		t.Errorf("Author = %+v", plugin.Author)
 	}
-	if p.Plugin.Author == nil || p.Plugin.Author.Email != "test@test.com" {
-		t.Errorf("Author = %+v", p.Plugin.Author)
-	}
-	if !p.Plugin.HasHooks {
+	if !plugin.HasHooks {
 		t.Error("HasHooks = false, want true")
 	}
-	if len(p.Plugin.MCPServers) != 1 {
-		t.Errorf("MCPServers = %v", p.Plugin.MCPServers)
+	if len(plugin.MCPServers) != 1 {
+		t.Errorf("MCPServers = %v", plugin.MCPServers)
 	}
-	if len(p.Plugin.LSPServers) != 1 {
-		t.Errorf("LSPServers = %v", p.Plugin.LSPServers)
+	if len(plugin.LSPServers) != 1 {
+		t.Errorf("LSPServers = %v", plugin.LSPServers)
 	}
-	if len(p.Plugin.Agents) != 1 {
-		t.Errorf("Agents = %v", p.Plugin.Agents)
+	if len(plugin.Agents) != 1 {
+		t.Errorf("Agents = %v", plugin.Agents)
 	}
 }
 
