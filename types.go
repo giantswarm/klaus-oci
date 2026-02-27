@@ -247,8 +247,9 @@ type personalityConfigBlob struct {
 
 // pullResult holds the result of a successful internal pull operation.
 type pullResult struct {
-	Digest     string
-	Ref        string
-	Cached     bool
-	ConfigJSON []byte // Raw OCI config blob (read from cache entry on cache hit).
+	Digest      string
+	Ref         string
+	Cached      bool
+	ConfigJSON  []byte            // Raw OCI config blob (read from cache entry on cache hit).
+	Annotations map[string]string // OCI manifest annotations (persisted in cache).
 }

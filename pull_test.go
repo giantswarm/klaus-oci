@@ -14,9 +14,7 @@ func TestParsePersonalityFromDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	personality := Personality{
-		Name:        "sre",
-		Description: "SRE personality",
+	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
 			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
 			Tag:        "v1.0.0",
@@ -25,15 +23,21 @@ func TestParsePersonalityFromDir(t *testing.T) {
 			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform", Tag: "v1.2.0"},
 		},
 	}
-	configJSON, err := json.Marshal(personality)
+	configJSON, err := json.Marshal(blob)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	annotations := map[string]string{
+		AnnotationName:        "sre",
+		AnnotationDescription: "SRE personality",
+	}
+
 	result := &pullResult{
-		Digest:     "sha256:abc123",
-		Ref:        "registry/personalities/sre:v1.0.0",
-		ConfigJSON: configJSON,
+		Digest:      "sha256:abc123",
+		Ref:         "registry/personalities/sre:v1.0.0",
+		ConfigJSON:  configJSON,
+		Annotations: annotations,
 	}
 
 	p, err := parsePersonalityFromDir(dir, result.Ref, result)
@@ -79,20 +83,23 @@ func TestParsePersonalityFromDir(t *testing.T) {
 func TestParsePersonalityFromDir_CachedWithConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	personality := Personality{
-		Name:        "cached",
-		Description: "cached personality",
-	}
-	configJSON, err := json.Marshal(personality)
+	blob := personalityConfigBlob{}
+	configJSON, err := json.Marshal(blob)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	annotations := map[string]string{
+		AnnotationName:        "cached",
+		AnnotationDescription: "cached personality",
+	}
+
 	result := &pullResult{
-		Digest:     "sha256:def456",
-		Ref:        "registry/personalities/cached:v1.0.0",
-		Cached:     true,
-		ConfigJSON: configJSON,
+		Digest:      "sha256:def456",
+		Ref:         "registry/personalities/cached:v1.0.0",
+		Cached:      true,
+		ConfigJSON:  configJSON,
+		Annotations: annotations,
 	}
 
 	p, err := parsePersonalityFromDir(dir, result.Ref, result)
@@ -132,23 +139,48 @@ func TestParsePersonalityFromDir_NoFiles(t *testing.T) {
 	}
 }
 
-func TestPluginUnmarshal(t *testing.T) {
-	plugin := Plugin{
-		Name:   "gs-platform",
+func TestPluginFromPullResult(t *testing.T) {
+	blob := pluginConfigBlob{
 		Skills: []string{"kubernetes"},
 	}
-	configJSON, err := json.Marshal(plugin)
+	configJSON, err := json.Marshal(blob)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	annotations := map[string]string{
+		AnnotationName: "gs-platform",
+	}
+
+	result := &pullResult{
+		Digest:      "sha256:abc",
+		Ref:         "reg/plugin:v1",
+		ConfigJSON:  configJSON,
+		Annotations: annotations,
+	}
+
+	_, tag := SplitNameTag(result.Ref)
+	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(result.Annotations)
 	p := &PulledPlugin{
-		ArtifactInfo: ArtifactInfo{Ref: "reg/plugin:v1", Tag: "v1", Digest: "sha256:abc"},
+		ArtifactInfo: ArtifactInfo{Ref: result.Ref, Tag: tag, Digest: result.Digest},
 		Dir:          "/tmp/plugin",
 	}
-	if err := json.Unmarshal(configJSON, &p.Plugin); err != nil {
+	p.Plugin = Plugin{
+		Name:        name,
+		Version:     tag,
+		Description: description,
+		Author:      author,
+		Homepage:    homepage,
+		SourceRepo:  sourceRepo,
+		License:     license,
+		Keywords:    keywords,
+	}
+
+	var b pluginConfigBlob
+	if err := json.Unmarshal(result.ConfigJSON, &b); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
+	p.Plugin.Skills = b.Skills
 
 	if p.Plugin.Name != "gs-platform" {
 		t.Errorf("Name = %q, want %q", p.Plugin.Name, "gs-platform")
@@ -158,34 +190,64 @@ func TestPluginUnmarshal(t *testing.T) {
 	}
 }
 
-func TestPluginUnmarshal_Full(t *testing.T) {
-	plugin := Plugin{
-		Name:        "full-plugin",
-		Description: "A full-featured plugin",
-		Author:      &Author{Name: "Test", Email: "test@test.com"},
-		SourceRepo:  "https://github.com/test/repo",
-		License:     "MIT",
-		Keywords:    []string{"test"},
-		Skills:      []string{"alpha", "beta"},
-		Commands:    []string{"cmd-a", "cmd-b"},
-		Agents:      []string{"agent-x"},
-		HasHooks:    true,
-		MCPServers:  []string{"mcp-one"},
-		LSPServers:  []string{"lsp-one"},
+func TestPluginFromPullResult_Full(t *testing.T) {
+	blob := pluginConfigBlob{
+		Skills:     []string{"alpha", "beta"},
+		Commands:   []string{"cmd-a", "cmd-b"},
+		Agents:     []string{"agent-x"},
+		HasHooks:   true,
+		MCPServers: []string{"mcp-one"},
+		LSPServers: []string{"lsp-one"},
 	}
-	configJSON, err := json.Marshal(plugin)
+	configJSON, err := json.Marshal(blob)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	annotations := map[string]string{
+		AnnotationName:        "full-plugin",
+		AnnotationDescription: "A full-featured plugin",
+		AnnotationAuthorName:  "Test",
+		AnnotationAuthorEmail: "test@test.com",
+		AnnotationRepository:  "https://github.com/test/repo",
+		AnnotationLicense:     "MIT",
+		AnnotationKeywords:    "test",
+	}
+
+	result := &pullResult{
+		Digest:      "sha256:xyz",
+		Ref:         "reg/plugin:v2.0.0",
+		ConfigJSON:  configJSON,
+		Annotations: annotations,
+	}
+
+	_, tag := SplitNameTag(result.Ref)
+	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(result.Annotations)
 	p := &PulledPlugin{
-		ArtifactInfo: ArtifactInfo{Ref: "reg/plugin:v2.0.0", Tag: "v2.0.0", Digest: "sha256:xyz"},
+		ArtifactInfo: ArtifactInfo{Ref: result.Ref, Tag: tag, Digest: result.Digest},
 		Dir:          "/tmp/full",
 	}
-	if err := json.Unmarshal(configJSON, &p.Plugin); err != nil {
+	p.Plugin = Plugin{
+		Name:        name,
+		Version:     tag,
+		Description: description,
+		Author:      author,
+		Homepage:    homepage,
+		SourceRepo:  sourceRepo,
+		License:     license,
+		Keywords:    keywords,
+	}
+
+	var b pluginConfigBlob
+	if err := json.Unmarshal(result.ConfigJSON, &b); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	p.Plugin.Version = "v2.0.0"
+	p.Plugin.Skills = b.Skills
+	p.Plugin.Commands = b.Commands
+	p.Plugin.Agents = b.Agents
+	p.Plugin.HasHooks = b.HasHooks
+	p.Plugin.MCPServers = b.MCPServers
+	p.Plugin.LSPServers = b.LSPServers
 
 	if p.Plugin.Name != "full-plugin" {
 		t.Errorf("Name = %q", p.Plugin.Name)
@@ -239,13 +301,7 @@ func TestParsePersonalityFromDir_WithFullMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	personality := Personality{
-		Name:        "sre",
-		Description: "SRE personality",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
-		License:     "Apache-2.0",
-		Keywords:    []string{"giantswarm", "sre"},
+	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
 			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
 			Tag:        "v1.2.0",
@@ -255,15 +311,25 @@ func TestParsePersonalityFromDir_WithFullMetadata(t *testing.T) {
 			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-sre", Tag: "v0.2.0"},
 		},
 	}
-	configJSON, err := json.Marshal(personality)
+	configJSON, err := json.Marshal(blob)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	annotations := map[string]string{
+		AnnotationName:        "sre",
+		AnnotationDescription: "SRE personality",
+		AnnotationAuthorName:  "Giant Swarm GmbH",
+		AnnotationRepository:  "https://github.com/giantswarm/klaus-personalities",
+		AnnotationLicense:     "Apache-2.0",
+		AnnotationKeywords:    "giantswarm,sre",
+	}
+
 	result := &pullResult{
-		Digest:     "sha256:full-meta",
-		Ref:        "registry/personalities/sre:v2.0.0",
-		ConfigJSON: configJSON,
+		Digest:      "sha256:full-meta",
+		Ref:         "registry/personalities/sre:v2.0.0",
+		ConfigJSON:  configJSON,
+		Annotations: annotations,
 	}
 
 	p, err := parsePersonalityFromDir(dir, result.Ref, result)
