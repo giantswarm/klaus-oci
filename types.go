@@ -227,6 +227,24 @@ type PushResult struct {
 	Digest string
 }
 
+// pluginConfigBlob is the OCI config blob schema for plugins.
+// Only type-specific fields; common metadata lives in manifest annotations.
+type pluginConfigBlob struct {
+	Skills     []string `json:"skills,omitempty"`
+	Commands   []string `json:"commands,omitempty"`
+	Agents     []string `json:"agents,omitempty"`
+	HasHooks   bool     `json:"hasHooks,omitempty"`
+	MCPServers []string `json:"mcpServers,omitempty"`
+	LSPServers []string `json:"lspServers,omitempty"`
+}
+
+// personalityConfigBlob is the OCI config blob schema for personalities.
+// Only composition fields; common metadata lives in manifest annotations.
+type personalityConfigBlob struct {
+	Toolchain ToolchainReference `json:"toolchain,omitempty"`
+	Plugins   []PluginReference  `json:"plugins,omitempty"`
+}
+
 // pullResult holds the result of a successful internal pull operation.
 type pullResult struct {
 	Digest     string
