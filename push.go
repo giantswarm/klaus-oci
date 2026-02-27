@@ -91,16 +91,7 @@ func (c *Client) PushPersonality(ctx context.Context, sourceDir, ref string, p P
 	if err != nil {
 		return nil, fmt.Errorf("marshaling personality config: %w", err)
 	}
-	annotations := buildKlausAnnotations(commonMetadata{
-		Name:        p.Name,
-		Description: p.Description,
-		Author:      p.Author,
-		Homepage:    p.Homepage,
-		SourceRepo:  p.SourceRepo,
-		License:     p.License,
-		Keywords:    p.Keywords,
-	})
-	return c.push(ctx, sourceDir, ref, configJSON, annotations, personalityArtifact)
+	return c.push(ctx, sourceDir, ref, configJSON, buildKlausAnnotations(p.klausMetadata()), personalityArtifact)
 }
 
 // PushPlugin pushes a plugin artifact to an OCI registry.
@@ -120,14 +111,5 @@ func (c *Client) PushPlugin(ctx context.Context, sourceDir, ref string, p Plugin
 	if err != nil {
 		return nil, fmt.Errorf("marshaling plugin config: %w", err)
 	}
-	annotations := buildKlausAnnotations(commonMetadata{
-		Name:        p.Name,
-		Description: p.Description,
-		Author:      p.Author,
-		Homepage:    p.Homepage,
-		SourceRepo:  p.SourceRepo,
-		License:     p.License,
-		Keywords:    p.Keywords,
-	})
-	return c.push(ctx, sourceDir, ref, configJSON, annotations, pluginArtifact)
+	return c.push(ctx, sourceDir, ref, configJSON, buildKlausAnnotations(p.klausMetadata()), pluginArtifact)
 }

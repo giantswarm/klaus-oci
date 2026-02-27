@@ -229,6 +229,24 @@ func TestToolchainFromAnnotations(t *testing.T) {
 			t.Errorf("Version = %q, want empty (version comes from OCI tag)", tc.Version)
 		}
 	})
+
+	t.Run("keywords whitespace trimmed", func(t *testing.T) {
+		annotations := map[string]string{
+			AnnotationName:     "go",
+			AnnotationKeywords: "giantswarm, go , toolchain",
+		}
+
+		tc := toolchainFromAnnotations(annotations)
+
+		if len(tc.Keywords) != 3 {
+			t.Fatalf("Keywords length = %d, want 3", len(tc.Keywords))
+		}
+		for i, want := range []string{"giantswarm", "go", "toolchain"} {
+			if tc.Keywords[i] != want {
+				t.Errorf("Keywords[%d] = %q, want %q", i, tc.Keywords[i], want)
+			}
+		}
+	})
 }
 
 func TestDescribePlugin(t *testing.T) {

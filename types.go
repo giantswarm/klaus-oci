@@ -11,6 +11,8 @@ type Author struct {
 // Common metadata (name, description, author, etc.) is stored as
 // io.giantswarm.klaus.* manifest annotations in the OCI registry.
 // Only type-specific fields are stored in the OCI config blob.
+// JSON tags on metadata fields are retained for display serialization
+// (CLI output, API responses); OCI storage uses pluginConfigBlob.
 //
 // The first group of fields comes directly from .claude-plugin/plugin.json
 // and aligns with the Claude Code plugin manifest schema:
@@ -54,11 +56,24 @@ type Plugin struct {
 	LSPServers []string `json:"lspServers,omitempty"`
 }
 
+func (p Plugin) klausMetadata() commonMetadata {
+	return commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	}
+}
+
 // Personality represents a Klaus personality.
 // Common metadata (name, description, author, etc.) is stored as
 // io.giantswarm.klaus.* manifest annotations in the OCI registry.
 // Only composition fields (toolchain + plugins) are stored in the
-// OCI config blob.
+// OCI config blob. JSON tags on metadata fields are retained for
+// display serialization; OCI storage uses personalityConfigBlob.
 //
 // Personalities are Giant Swarm's composition layer: they combine a
 // toolchain (container image), a set of plugins, and a behavioral
@@ -96,6 +111,18 @@ type Personality struct {
 	// conveyed via the OCI tag when pushing, and populated from the resolved
 	// OCI tag when fetching (describe/pull).
 	Version string `yaml:"-" json:"-"`
+}
+
+func (p Personality) klausMetadata() commonMetadata {
+	return commonMetadata{
+		Name:        p.Name,
+		Description: p.Description,
+		Author:      p.Author,
+		Homepage:    p.Homepage,
+		SourceRepo:  p.SourceRepo,
+		License:     p.License,
+		Keywords:    p.Keywords,
+	}
 }
 
 // Toolchain represents a Klaus toolchain (container image).

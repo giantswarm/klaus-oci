@@ -84,7 +84,11 @@ func metadataFromAnnotations(annotations map[string]string) commonMetadata {
 	}
 
 	if kw := annotations[AnnotationKeywords]; kw != "" {
-		m.Keywords = strings.Split(kw, ",")
+		parts := strings.Split(kw, ",")
+		for i := range parts {
+			parts[i] = strings.TrimSpace(parts[i])
+		}
+		m.Keywords = parts
 	}
 
 	authorName := annotations[AnnotationAuthorName]
