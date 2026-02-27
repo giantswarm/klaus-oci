@@ -29,11 +29,29 @@ func (c *Client) DescribePlugin(ctx context.Context, ref string) (*DescribedPlug
 		return nil, err
 	}
 
-	var plugin Plugin
-	if err := json.Unmarshal(configJSON, &plugin); err != nil {
+	var blob pluginConfigBlob
+	if err := json.Unmarshal(configJSON, &blob); err != nil {
 		return nil, fmt.Errorf("parsing plugin config for %s: %w", resolved, err)
 	}
-	plugin.Version = fm.tag
+
+	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(fm.manifest.Annotations)
+
+	plugin := Plugin{
+		Name:        name,
+		Description: description,
+		Author:      author,
+		Homepage:    homepage,
+		SourceRepo:  sourceRepo,
+		License:     license,
+		Keywords:    keywords,
+		Version:     fm.tag,
+		Skills:      blob.Skills,
+		Commands:    blob.Commands,
+		Agents:      blob.Agents,
+		HasHooks:    blob.HasHooks,
+		MCPServers:  blob.MCPServers,
+		LSPServers:  blob.LSPServers,
+	}
 
 	return &DescribedPlugin{
 		ArtifactInfo: ArtifactInfo{Ref: resolved, Tag: fm.tag, Digest: fm.digest},
@@ -60,11 +78,25 @@ func (c *Client) DescribePersonality(ctx context.Context, ref string) (*Describe
 		return nil, err
 	}
 
-	var personality Personality
-	if err := json.Unmarshal(configJSON, &personality); err != nil {
+	var blob personalityConfigBlob
+	if err := json.Unmarshal(configJSON, &blob); err != nil {
 		return nil, fmt.Errorf("parsing personality config for %s: %w", resolved, err)
 	}
-	personality.Version = fm.tag
+
+	name, description, author, homepage, sourceRepo, license, keywords := metadataFromAnnotations(fm.manifest.Annotations)
+
+	personality := Personality{
+		Name:        name,
+		Description: description,
+		Author:      author,
+		Homepage:    homepage,
+		SourceRepo:  sourceRepo,
+		License:     license,
+		Keywords:    keywords,
+		Version:     fm.tag,
+		Toolchain:   blob.Toolchain,
+		Plugins:     blob.Plugins,
+	}
 
 	return &DescribedPersonality{
 		ArtifactInfo: ArtifactInfo{Ref: resolved, Tag: fm.tag, Digest: fm.digest},

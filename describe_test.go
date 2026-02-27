@@ -232,26 +232,27 @@ func TestToolchainFromAnnotations(t *testing.T) {
 }
 
 func TestDescribePlugin(t *testing.T) {
-	pluginConfig := Plugin{
-		Name:        "gs-base",
-		Description: "A general purpose plugin",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		SourceRepo:  "https://github.com/giantswarm/claude-code",
-		License:     "Apache-2.0",
-		Keywords:    []string{"giantswarm", "platform"},
-		Skills:      []string{"kubernetes", "fluxcd"},
-		Commands:    []string{"hello", "init-kubernetes"},
-		Agents:      []string{"code-reviewer"},
-		HasHooks:    true,
-		MCPServers:  []string{"github"},
+	blob := pluginConfigBlob{
+		Skills:     []string{"kubernetes", "fluxcd"},
+		Commands:   []string{"hello", "init-kubernetes"},
+		Agents:     []string{"code-reviewer"},
+		HasHooks:   true,
+		MCPServers: []string{"github"},
 	}
-	configJSON, _ := json.Marshal(pluginConfig)
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations(
+		"gs-base", "A general purpose plugin",
+		&Author{Name: "Giant Swarm GmbH"},
+		"", "https://github.com/giantswarm/claude-code",
+		"Apache-2.0", []string{"giantswarm", "platform"}, "",
+	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()
@@ -310,17 +311,18 @@ func TestDescribePlugin(t *testing.T) {
 }
 
 func TestDescribePlugin_Minimal(t *testing.T) {
-	pluginConfig := Plugin{
-		Name:     "commit-commands",
+	blob := pluginConfigBlob{
 		Commands: []string{"commit", "push", "pr"},
 	}
-	configJSON, _ := json.Marshal(pluginConfig)
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations("commit-commands", "", nil, "", "", "", nil, "")
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/commit-commands": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()
@@ -349,13 +351,7 @@ func TestDescribePlugin_Minimal(t *testing.T) {
 }
 
 func TestDescribePersonality(t *testing.T) {
-	personalityConfig := Personality{
-		Name:        "sre",
-		Description: "SRE personality",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
-		License:     "Apache-2.0",
-		Keywords:    []string{"giantswarm", "sre", "kubernetes"},
+	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
 			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
 			Tag:        "v1.0.0",
@@ -365,13 +361,20 @@ func TestDescribePersonality(t *testing.T) {
 			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-sre", Tag: "v1.2.0"},
 		},
 	}
-	configJSON, _ := json.Marshal(personalityConfig)
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations(
+		"sre", "SRE personality",
+		&Author{Name: "Giant Swarm GmbH"},
+		"", "https://github.com/giantswarm/klaus-personalities",
+		"Apache-2.0", []string{"giantswarm", "sre", "kubernetes"}, "",
+	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/sre": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePersonalityConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()
@@ -433,20 +436,21 @@ func TestDescribePersonality(t *testing.T) {
 }
 
 func TestDescribePersonality_Minimal(t *testing.T) {
-	personalityConfig := Personality{
-		Name: "go",
+	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
 			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
 			Tag:        "latest",
 		},
 	}
-	configJSON, _ := json.Marshal(personalityConfig)
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations("go", "", nil, "", "", "", nil, "")
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/go": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePersonalityConfig,
 			tags:            []string{"v0.3.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()
@@ -585,19 +589,16 @@ func TestDescribeToolchain_Minimal(t *testing.T) {
 }
 
 func TestDescribePlugin_VersionFromTag(t *testing.T) {
-	// Config blob intentionally has no version (json:"-" excludes it).
-	// Verify that the returned Plugin.Version comes from the OCI tag.
-	pluginConfig := Plugin{
-		Name:    "versioned-plugin",
-		Version: "should-be-ignored",
-	}
-	configJSON, _ := json.Marshal(pluginConfig)
+	blob := pluginConfigBlob{}
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations("versioned-plugin", "", nil, "", "", "", nil, "")
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/versioned-plugin": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v2.5.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()
@@ -651,28 +652,28 @@ func TestDescribePlugin_InvalidConfigJSON(t *testing.T) {
 }
 
 func TestDescribePlugin_WithAllComponents(t *testing.T) {
-	pluginConfig := Plugin{
-		Name:        "full-featured",
-		Description: "A plugin with every component type",
-		Author:      &Author{Name: "Test Author", Email: "test@example.com", URL: "https://example.com"},
-		Homepage:    "https://docs.example.com",
-		SourceRepo:  "https://github.com/example/repo",
-		License:     "MIT",
-		Keywords:    []string{"test", "full", "featured"},
-		Skills:      []string{"alpha", "beta"},
-		Commands:    []string{"cmd-one", "cmd-two", "cmd-three"},
-		Agents:      []string{"agent-a"},
-		HasHooks:    true,
-		MCPServers:  []string{"server-x", "server-y"},
-		LSPServers:  []string{"lsp-z"},
+	blob := pluginConfigBlob{
+		Skills:     []string{"alpha", "beta"},
+		Commands:   []string{"cmd-one", "cmd-two", "cmd-three"},
+		Agents:     []string{"agent-a"},
+		HasHooks:   true,
+		MCPServers: []string{"server-x", "server-y"},
+		LSPServers: []string{"lsp-z"},
 	}
-	configJSON, _ := json.Marshal(pluginConfig)
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations(
+		"full-featured", "A plugin with every component type",
+		&Author{Name: "Test Author", Email: "test@example.com", URL: "https://example.com"},
+		"https://docs.example.com", "https://github.com/example/repo",
+		"MIT", []string{"test", "full", "featured"}, "",
+	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/full-featured": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v3.0.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()
@@ -714,21 +715,21 @@ func TestDescribePlugin_WithAllComponents(t *testing.T) {
 }
 
 func TestDescribePersonality_VersionFromTag(t *testing.T) {
-	personalityConfig := Personality{
-		Name:    "versioned",
-		Version: "should-be-ignored",
+	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
 			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
 			Tag:        "latest",
 		},
 	}
-	configJSON, _ := json.Marshal(personalityConfig)
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations("versioned", "", nil, "", "", "", nil, "")
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/versioned": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePersonalityConfig,
 			tags:            []string{"v3.1.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()
@@ -782,13 +783,7 @@ func TestDescribePersonality_InvalidConfigJSON(t *testing.T) {
 }
 
 func TestDescribePersonality_WithPinnedDeps(t *testing.T) {
-	personalityConfig := Personality{
-		Name:        "program-manager",
-		Description: "Program manager personality",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
-		License:     "Apache-2.0",
-		Keywords:    []string{"giantswarm", "management"},
+	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
 			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
 			Tag:        "v1.2.0",
@@ -799,13 +794,20 @@ func TestDescribePersonality_WithPinnedDeps(t *testing.T) {
 			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-product", Tag: "v0.1.0"},
 		},
 	}
-	configJSON, _ := json.Marshal(personalityConfig)
+	configJSON, _ := json.Marshal(blob)
+	annotations := buildKlausAnnotations(
+		"program-manager", "Program manager personality",
+		&Author{Name: "Giant Swarm GmbH"},
+		"", "https://github.com/giantswarm/klaus-personalities",
+		"Apache-2.0", []string{"giantswarm", "management"}, "",
+	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/program-manager": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePersonalityConfig,
 			tags:            []string{"v2.0.0"},
+			annotations:     annotations,
 		},
 	})
 	defer ts.Close()

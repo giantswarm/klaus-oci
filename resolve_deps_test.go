@@ -9,20 +9,13 @@ import (
 )
 
 func TestResolvePersonalityDeps(t *testing.T) {
-	pluginBaseConfig := Plugin{
-		Name:        "gs-base",
-		Description: "Base plugin",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		Skills:      []string{"kubernetes", "fluxcd"},
-	}
-	pluginBaseJSON, _ := json.Marshal(pluginBaseConfig)
+	pluginBaseBlob := pluginConfigBlob{Skills: []string{"kubernetes", "fluxcd"}}
+	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
+	pluginBaseAnnotations := buildKlausAnnotations("gs-base", "Base plugin", &Author{Name: "Giant Swarm GmbH"}, "", "", "", nil, "")
 
-	pluginSREConfig := Plugin{
-		Name:        "gs-sre",
-		Description: "SRE plugin",
-		Commands:    []string{"check-cluster"},
-	}
-	pluginSREJSON, _ := json.Marshal(pluginSREConfig)
+	pluginSREBlob := pluginConfigBlob{Commands: []string{"check-cluster"}}
+	pluginSREJSON, _ := json.Marshal(pluginSREBlob)
+	pluginSREAnnotations := buildKlausAnnotations("gs-sre", "SRE plugin", nil, "", "", "", nil, "")
 
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
@@ -35,11 +28,13 @@ func TestResolvePersonalityDeps(t *testing.T) {
 			configJSON:      pluginBaseJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginBaseAnnotations,
 		},
 		"giantswarm/klaus-plugins/gs-sre": {
 			configJSON:      pluginSREJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v0.5.0"},
+			annotations:     pluginSREAnnotations,
 		},
 		"giantswarm/klaus-toolchains/go": {
 			configJSON:      []byte(`{"architecture":"amd64"}`),
@@ -108,11 +103,9 @@ func TestResolvePersonalityDeps(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
-	pluginBaseConfig := Plugin{
-		Name:        "gs-base",
-		Description: "Base plugin",
-	}
-	pluginBaseJSON, _ := json.Marshal(pluginBaseConfig)
+	pluginBaseBlob := pluginConfigBlob{}
+	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
+	pluginBaseAnnotations := buildKlausAnnotations("gs-base", "Base plugin", nil, "", "", "", nil, "")
 
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
@@ -124,6 +117,7 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 			configJSON:      pluginBaseJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginBaseAnnotations,
 		},
 		"giantswarm/klaus-toolchains/go": {
 			configJSON:      []byte(`{}`),
@@ -171,16 +165,16 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
-	pluginConfig := Plugin{
-		Name: "gs-base",
-	}
-	pluginJSON, _ := json.Marshal(pluginConfig)
+	pluginBlob := pluginConfigBlob{}
+	pluginJSON, _ := json.Marshal(pluginBlob)
+	pluginAnnotations := buildKlausAnnotations("gs-base", "", nil, "", "", "", nil, "")
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginAnnotations,
 		},
 	})
 	defer ts.Close()
@@ -266,16 +260,16 @@ func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_EmptyToolchain(t *testing.T) {
-	pluginConfig := Plugin{
-		Name: "gs-base",
-	}
-	pluginJSON, _ := json.Marshal(pluginConfig)
+	pluginBlob := pluginConfigBlob{}
+	pluginJSON, _ := json.Marshal(pluginBlob)
+	pluginAnnotations := buildKlausAnnotations("gs-base", "", nil, "", "", "", nil, "")
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v1.0.0"},
+			annotations:     pluginAnnotations,
 		},
 	})
 	defer ts.Close()
@@ -377,17 +371,16 @@ func TestResolvePersonalityDeps_Empty(t *testing.T) {
 }
 
 func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
-	pluginConfig := Plugin{
-		Name:        "gs-base",
-		Description: "Base plugin",
-	}
-	pluginJSON, _ := json.Marshal(pluginConfig)
+	pluginBlob := pluginConfigBlob{}
+	pluginJSON, _ := json.Marshal(pluginBlob)
+	pluginAnnotations := buildKlausAnnotations("gs-base", "Base plugin", nil, "", "", "", nil, "")
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/gs-base": {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
 			tags:            []string{"v2.3.0"},
+			annotations:     pluginAnnotations,
 		},
 	})
 	defer ts.Close()
