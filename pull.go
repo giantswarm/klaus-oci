@@ -205,4 +205,3 @@ func parsePersonalityFromDir(dir, ref string, result *pullResult) (*PulledPerson
 
 	return p, nil
 }
-

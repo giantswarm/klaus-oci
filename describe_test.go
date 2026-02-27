@@ -219,8 +219,8 @@ func TestToolchainFromAnnotations(t *testing.T) {
 
 	t.Run("version annotation ignored", func(t *testing.T) {
 		annotations := map[string]string{
-			AnnotationName:            "go",
-			ocispec.AnnotationVersion: "v1.2.0",
+			AnnotationName:                     "go",
+			"org.opencontainers.image.version": "v1.2.0",
 		}
 
 		tc := toolchainFromAnnotations(annotations)
@@ -244,7 +244,7 @@ func TestDescribePlugin(t *testing.T) {
 		"gs-base", "A general purpose plugin",
 		&Author{Name: "Giant Swarm GmbH"},
 		"", "https://github.com/giantswarm/claude-code",
-		"Apache-2.0", []string{"giantswarm", "platform"}, "",
+		"Apache-2.0", []string{"giantswarm", "platform"},
 	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -315,7 +315,7 @@ func TestDescribePlugin_Minimal(t *testing.T) {
 		Commands: []string{"commit", "push", "pr"},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("commit-commands", "", nil, "", "", "", nil, "")
+	annotations := buildKlausAnnotations("commit-commands", "", nil, "", "", "", nil)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/commit-commands": {
@@ -366,7 +366,7 @@ func TestDescribePersonality(t *testing.T) {
 		"sre", "SRE personality",
 		&Author{Name: "Giant Swarm GmbH"},
 		"", "https://github.com/giantswarm/klaus-personalities",
-		"Apache-2.0", []string{"giantswarm", "sre", "kubernetes"}, "",
+		"Apache-2.0", []string{"giantswarm", "sre", "kubernetes"},
 	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -443,7 +443,7 @@ func TestDescribePersonality_Minimal(t *testing.T) {
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("go", "", nil, "", "", "", nil, "")
+	annotations := buildKlausAnnotations("go", "", nil, "", "", "", nil)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/go": {
@@ -591,7 +591,7 @@ func TestDescribeToolchain_Minimal(t *testing.T) {
 func TestDescribePlugin_VersionFromTag(t *testing.T) {
 	blob := pluginConfigBlob{}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("versioned-plugin", "", nil, "", "", "", nil, "")
+	annotations := buildKlausAnnotations("versioned-plugin", "", nil, "", "", "", nil)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/versioned-plugin": {
@@ -665,7 +665,7 @@ func TestDescribePlugin_WithAllComponents(t *testing.T) {
 		"full-featured", "A plugin with every component type",
 		&Author{Name: "Test Author", Email: "test@example.com", URL: "https://example.com"},
 		"https://docs.example.com", "https://github.com/example/repo",
-		"MIT", []string{"test", "full", "featured"}, "",
+		"MIT", []string{"test", "full", "featured"},
 	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -722,7 +722,7 @@ func TestDescribePersonality_VersionFromTag(t *testing.T) {
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations("versioned", "", nil, "", "", "", nil, "")
+	annotations := buildKlausAnnotations("versioned", "", nil, "", "", "", nil)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/versioned": {
@@ -799,7 +799,7 @@ func TestDescribePersonality_WithPinnedDeps(t *testing.T) {
 		"program-manager", "Program manager personality",
 		&Author{Name: "Giant Swarm GmbH"},
 		"", "https://github.com/giantswarm/klaus-personalities",
-		"Apache-2.0", []string{"giantswarm", "management"}, "",
+		"Apache-2.0", []string{"giantswarm", "management"},
 	)
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -886,8 +886,8 @@ func TestDescribeToolchain_NoAnnotations(t *testing.T) {
 
 func TestDescribeToolchain_VersionFromTag(t *testing.T) {
 	annotations := map[string]string{
-		AnnotationName:            "go",
-		ocispec.AnnotationVersion: "v999.0.0",
+		AnnotationName:                     "go",
+		"org.opencontainers.image.version": "v999.0.0",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{

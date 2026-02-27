@@ -8,7 +8,9 @@ type Author struct {
 }
 
 // Plugin represents a Klaus plugin.
-// Most fields are serialized as JSON in the OCI config blob.
+// Common metadata (name, description, author, etc.) is stored as
+// io.giantswarm.klaus.* manifest annotations in the OCI registry.
+// Only type-specific fields are stored in the OCI config blob.
 //
 // The first group of fields comes directly from .claude-plugin/plugin.json
 // and aligns with the Claude Code plugin manifest schema:
@@ -53,7 +55,10 @@ type Plugin struct {
 }
 
 // Personality represents a Klaus personality.
-// Most fields are serialized as JSON in the OCI config blob.
+// Common metadata (name, description, author, etc.) is stored as
+// io.giantswarm.klaus.* manifest annotations in the OCI registry.
+// Only composition fields (toolchain + plugins) are stored in the
+// OCI config blob.
 //
 // Personalities are Giant Swarm's composition layer: they combine a
 // toolchain (container image), a set of plugins, and a behavioral
@@ -62,12 +67,10 @@ type Plugin struct {
 // Unlike plugins (where the manifest format is defined by upstream
 // Claude Code), the personality definition format is our own. The
 // on-disk source is personality.yaml (YAML) + SOUL.md (Markdown).
-// At push time these are read and serialized as JSON into the OCI
-// config blob (excluding Version, which is conveyed via the OCI tag).
 //
 // Fields are grouped by origin:
-//   - Metadata: from personality.yaml
-//   - Composition: from personality.yaml (toolchain + plugins)
+//   - Metadata: from personality.yaml (stored as OCI manifest annotations)
+//   - Composition: from personality.yaml (stored in OCI config blob)
 //   - Version: from OCI tags (not in personality.yaml, not in config blob)
 type Personality struct {
 	// --- Metadata (from personality.yaml) ---

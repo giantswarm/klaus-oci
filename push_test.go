@@ -148,7 +148,7 @@ func TestPushPlugin_AnnotationsFromMetadata(t *testing.T) {
 		Skills:      []string{"kubernetes"},
 	}
 
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords, "")
+	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
 
 	expected := map[string]string{
 		AnnotationName:        "gs-base",
@@ -184,7 +184,7 @@ func TestPushPersonality_AnnotationsFromMetadata(t *testing.T) {
 		},
 	}
 
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords, "")
+	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
 
 	if annotations[AnnotationName] != "sre" {
 		t.Errorf("name = %q, want %q", annotations[AnnotationName], "sre")
@@ -206,7 +206,7 @@ func TestPushPersonality_AnnotationsFromMetadata(t *testing.T) {
 func TestPushPlugin_MinimalMetadata(t *testing.T) {
 	p := Plugin{Name: "minimal"}
 
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords, "")
+	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
 
 	if annotations[AnnotationName] != "minimal" {
 		t.Errorf("name = %q, want %q", annotations[AnnotationName], "minimal")
@@ -218,7 +218,7 @@ func TestPushPlugin_MinimalMetadata(t *testing.T) {
 
 func TestPushPlugin_NoMetadata(t *testing.T) {
 	p := Plugin{}
-	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords, "")
+	annotations := buildKlausAnnotations(p.Name, p.Description, p.Author, p.Homepage, p.SourceRepo, p.License, p.Keywords)
 	if annotations != nil {
 		t.Errorf("expected nil annotations for empty plugin, got %v", annotations)
 	}

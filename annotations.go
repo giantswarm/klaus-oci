@@ -20,7 +20,7 @@ const (
 // buildKlausAnnotations builds an OCI manifest annotation map from common
 // metadata fields. Only non-empty fields produce annotations. Returns nil
 // when all fields are empty.
-func buildKlausAnnotations(name, description string, author *Author, homepage, sourceRepo, license string, keywords []string, tag string) map[string]string {
+func buildKlausAnnotations(name, description string, author *Author, homepage, sourceRepo, license string, keywords []string) map[string]string {
 	annotations := make(map[string]string)
 
 	if name != "" {
