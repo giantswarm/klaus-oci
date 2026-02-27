@@ -151,13 +151,13 @@ func newArtifactRegistry(artifacts map[string]testArtifactEntry) *httptest.Serve
 func TestToolchainFromAnnotations(t *testing.T) {
 	t.Run("full annotations", func(t *testing.T) {
 		annotations := map[string]string{
-			ocispec.AnnotationTitle:       "go",
-			ocispec.AnnotationDescription: "Go toolchain for Klaus",
-			ocispec.AnnotationAuthors:     "Giant Swarm GmbH",
-			ocispec.AnnotationURL:         "https://docs.giantswarm.io/klaus/",
-			ocispec.AnnotationSource:      "https://github.com/giantswarm/klaus-images",
-			ocispec.AnnotationLicenses:    "Apache-2.0",
-			AnnotationKeywords:            "giantswarm,go,toolchain",
+			AnnotationName:        "go",
+			AnnotationDescription: "Go toolchain for Klaus",
+			AnnotationAuthorName:  "Giant Swarm GmbH",
+			AnnotationHomepage:    "https://docs.giantswarm.io/klaus/",
+			AnnotationRepository:  "https://github.com/giantswarm/klaus-images",
+			AnnotationLicense:     "Apache-2.0",
+			AnnotationKeywords:    "giantswarm,go,toolchain",
 		}
 
 		tc := toolchainFromAnnotations(annotations)
@@ -190,7 +190,7 @@ func TestToolchainFromAnnotations(t *testing.T) {
 
 	t.Run("minimal annotations", func(t *testing.T) {
 		annotations := map[string]string{
-			ocispec.AnnotationTitle: "python",
+			AnnotationName: "python",
 		}
 
 		tc := toolchainFromAnnotations(annotations)
@@ -219,7 +219,7 @@ func TestToolchainFromAnnotations(t *testing.T) {
 
 	t.Run("version annotation ignored", func(t *testing.T) {
 		annotations := map[string]string{
-			ocispec.AnnotationTitle:   "go",
+			AnnotationName:            "go",
 			ocispec.AnnotationVersion: "v1.2.0",
 		}
 
@@ -476,13 +476,13 @@ func TestDescribePersonality_Minimal(t *testing.T) {
 
 func TestDescribeToolchain(t *testing.T) {
 	annotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain for Klaus",
-		ocispec.AnnotationAuthors:     "Giant Swarm GmbH",
-		ocispec.AnnotationURL:         "https://docs.giantswarm.io/klaus/",
-		ocispec.AnnotationSource:      "https://github.com/giantswarm/klaus-images",
-		ocispec.AnnotationLicenses:    "Apache-2.0",
-		AnnotationKeywords:            "giantswarm,go,toolchain",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain for Klaus",
+		AnnotationAuthorName:  "Giant Swarm GmbH",
+		AnnotationHomepage:    "https://docs.giantswarm.io/klaus/",
+		AnnotationRepository:  "https://github.com/giantswarm/klaus-images",
+		AnnotationLicense:     "Apache-2.0",
+		AnnotationKeywords:    "giantswarm,go,toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -541,8 +541,8 @@ func TestDescribeToolchain(t *testing.T) {
 
 func TestDescribeToolchain_Minimal(t *testing.T) {
 	annotations := map[string]string{
-		ocispec.AnnotationTitle:       "python",
-		ocispec.AnnotationDescription: "Python toolchain",
+		AnnotationName:        "python",
+		AnnotationDescription: "Python toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -884,7 +884,7 @@ func TestDescribeToolchain_NoAnnotations(t *testing.T) {
 
 func TestDescribeToolchain_VersionFromTag(t *testing.T) {
 	annotations := map[string]string{
-		ocispec.AnnotationTitle:   "go",
+		AnnotationName:            "go",
 		ocispec.AnnotationVersion: "v999.0.0",
 	}
 
@@ -914,8 +914,8 @@ func TestDescribeToolchain_VersionFromTag(t *testing.T) {
 
 func TestToolchainFromAnnotations_SingleKeyword(t *testing.T) {
 	annotations := map[string]string{
-		ocispec.AnnotationTitle: "test",
-		AnnotationKeywords:      "single",
+		AnnotationName:     "test",
+		AnnotationKeywords: "single",
 	}
 
 	tc := toolchainFromAnnotations(annotations)

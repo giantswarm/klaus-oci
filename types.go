@@ -100,15 +100,8 @@ type Personality struct {
 // standard Docker images, not custom OCI artifacts.
 //
 // Fields mirror the metadata fields of Plugin and Personality for
-// consistency. Each field maps to a standard OCI annotation:
-//
-//	Name        -> org.opencontainers.image.title
-//	Description -> org.opencontainers.image.description
-//	Author      -> org.opencontainers.image.authors (parsed as name string)
-//	Homepage    -> org.opencontainers.image.url
-//	SourceRepo  -> org.opencontainers.image.source
-//	License     -> org.opencontainers.image.licenses
-//	Keywords    -> io.giantswarm.keywords (custom, comma-separated)
+// consistency. Each field maps to a Klaus annotation (io.giantswarm.klaus.*),
+// parsed via metadataFromAnnotations.
 //
 // Version is populated from the OCI tag, same as Plugin and Personality.
 type Toolchain struct {

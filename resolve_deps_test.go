@@ -25,9 +25,9 @@ func TestResolvePersonalityDeps(t *testing.T) {
 	pluginSREJSON, _ := json.Marshal(pluginSREConfig)
 
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain for Klaus",
-		ocispec.AnnotationAuthors:     "Giant Swarm GmbH",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain for Klaus",
+		AnnotationAuthorName:  "Giant Swarm GmbH",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -115,8 +115,8 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 	pluginBaseJSON, _ := json.Marshal(pluginBaseConfig)
 
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -221,8 +221,8 @@ func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
 
 func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -308,7 +308,7 @@ func TestResolvePersonalityDeps_EmptyToolchain(t *testing.T) {
 
 func TestResolvePersonalityDeps_AllPluginsMissing(t *testing.T) {
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle: "go",
+		AnnotationName: "go",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -420,8 +420,8 @@ func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
 
 func TestResolvePersonalityDeps_ToolchainVersionFromTag(t *testing.T) {
 	toolchainAnnotations := map[string]string{
-		ocispec.AnnotationTitle:       "go",
-		ocispec.AnnotationDescription: "Go toolchain",
+		AnnotationName:        "go",
+		AnnotationDescription: "Go toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
