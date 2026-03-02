@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Support `identitytoken` field in Docker/Podman credential config files. Azure Container Registry stores OAuth2 refresh tokens in this field (via `az acr login`), which is now mapped to `auth.Credential.RefreshToken` for proper OAuth2 token exchange. Previously only the `auth` (basic credential) field was read, causing 401 errors against private ACR registries.
+
 ### Changed
 
 - **BREAKING**: Unified domain types -- `PluginMeta` renamed to `Plugin`, `PersonalityMeta`/`PersonalitySpec` merged into `Personality`, `ToolchainMeta` replaced by `Toolchain` with richer metadata fields (Author, Homepage, SourceRepo, License, Keywords derived from OCI manifest annotations).
