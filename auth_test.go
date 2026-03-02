@@ -56,6 +56,58 @@ func TestCredentialFromJSON(t *testing.T) {
 			t.Error("expected false for invalid JSON")
 		}
 	})
+
+	t.Run("identity token used as refresh token", func(t *testing.T) {
+		cfgWithToken := dockerConfig{
+			Auths: map[string]dockerAuthEntry{
+				"myacr.azurecr.io": {
+					Auth:          base64.StdEncoding.EncodeToString([]byte("00000000-0000-0000-0000-000000000000:")),
+					IdentityToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test-refresh-token",
+				},
+			},
+		}
+		tokenData, err := json.Marshal(cfgWithToken)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+
+		cred, ok := credentialFromJSON(tokenData, "myacr.azurecr.io")
+		if !ok {
+			t.Fatal("expected credential to be found")
+		}
+		if cred.RefreshToken != "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test-refresh-token" {
+			t.Errorf("RefreshToken = %q, want identity token value", cred.RefreshToken)
+		}
+		if cred.Username != "" || cred.Password != "" {
+			t.Errorf("Username/Password should be empty when identity token is used, got %q/%q", cred.Username, cred.Password)
+		}
+	})
+
+	t.Run("identity token takes precedence over auth", func(t *testing.T) {
+		cfgBoth := dockerConfig{
+			Auths: map[string]dockerAuthEntry{
+				"registry.example.com": {
+					Auth:          base64.StdEncoding.EncodeToString([]byte("user:pass")),
+					IdentityToken: "my-refresh-token",
+				},
+			},
+		}
+		bothData, err := json.Marshal(cfgBoth)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+
+		cred, ok := credentialFromJSON(bothData, "registry.example.com")
+		if !ok {
+			t.Fatal("expected credential to be found")
+		}
+		if cred.RefreshToken != "my-refresh-token" {
+			t.Errorf("RefreshToken = %q, want %q", cred.RefreshToken, "my-refresh-token")
+		}
+		if cred.Username != "" || cred.Password != "" {
+			t.Errorf("expected empty Username/Password, got %q/%q", cred.Username, cred.Password)
+		}
+	})
 }
 
 func TestCredentialFromFile(t *testing.T) {

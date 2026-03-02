@@ -19,7 +19,8 @@ type dockerConfig struct {
 
 // dockerAuthEntry holds a single registry credential.
 type dockerAuthEntry struct {
-	Auth string `json:"auth"` // base64(username:password)
+	Auth          string `json:"auth"`          // base64(username:password)
+	IdentityToken string `json:"identitytoken"` // OAuth2 refresh token (e.g. from az acr login)
 }
 
 // newAuthClient creates an auth.Client that resolves credentials from
@@ -104,6 +105,12 @@ func credentialFromJSON(data []byte, hostport string) (auth.Credential, bool) {
 	}
 	if !ok {
 		return auth.EmptyCredential, false
+	}
+
+	if entry.IdentityToken != "" {
+		return auth.Credential{
+			RefreshToken: entry.IdentityToken,
+		}, true
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(entry.Auth)
