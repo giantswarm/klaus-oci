@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
+	"time"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
@@ -16,6 +20,15 @@ type Client struct {
 	plainHTTP   bool
 	authClient  *auth.Client
 	concurrency int
+
+	// cache configuration captured from WithCache*. The store itself is
+	// created lazily on first use so construction errors surface on the
+	// first cache-using call rather than forcing NewClient to change
+	// signature.
+	cacheCfg  cacheConfig
+	storeOnce sync.Once
+	store     CacheStore
+	storeErr  error
 }
 
 const defaultConcurrency = 10
@@ -49,11 +62,48 @@ func WithRegistryAuthEnv(envName string) ClientOption {
 	}
 }
 
+// WithCache enables the on-disk registry response cache rooted at dir.
+// The cache accelerates tag resolves, tag lists, catalog lookups, and
+// manifest/blob fetches. See CacheStore for invalidation details. An
+// empty dir leaves the cache disabled.
+func WithCache(dir string) ClientOption {
+	return func(c *Client) { c.cacheCfg.dir = dir }
+}
+
+// WithCacheTTL overrides the default fresh and stale TTLs for reference
+// and tag-list entries. The catalog TTL is not affected. A non-positive
+// value keeps the default for that field.
+func WithCacheTTL(fresh, stale time.Duration) ClientOption {
+	return func(c *Client) {
+		if fresh > 0 {
+			c.cacheCfg.freshTTL = fresh
+		}
+		if stale > 0 {
+			c.cacheCfg.staleTTL = stale
+		}
+	}
+}
+
+// WithCacheMaxSize overrides the default LRU budget (bytes) for the
+// content store. A non-positive value disables eviction.
+func WithCacheMaxSize(bytes int64) ClientOption {
+	return func(c *Client) { c.cacheCfg.maxBytes = bytes }
+}
+
+// WithBackgroundRefresh toggles async revalidation of stale-but-usable
+// cache entries. Default on. When off, stale entries still return
+// immediately but no background probe is issued; the entry is refetched
+// synchronously only when it ages past the stale TTL.
+func WithBackgroundRefresh(enabled bool) ClientOption {
+	return func(c *Client) { c.cacheCfg.backgroundRefresh = enabled }
+}
+
 // NewClient creates a new OCI client for Klaus artifacts.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
 		authClient:  newAuthClient(""),
 		concurrency: defaultConcurrency,
+		cacheCfg:    defaultCacheConfig(),
 	}
 	for _, o := range opts {
 		o(c)
@@ -61,28 +111,73 @@ func NewClient(opts ...ClientOption) *Client {
 	return c
 }
 
+// cacheStore returns the lazily-initialised cache store, or (nil, nil) when
+// caching is not configured.
+func (c *Client) cacheStore() (CacheStore, error) {
+	if c.cacheCfg.dir == "" {
+		return nil, nil
+	}
+	c.storeOnce.Do(func() {
+		c.store, c.storeErr = newDiskCache(c.cacheCfg, c.authClient, c.plainHTTP)
+	})
+	return c.store, c.storeErr
+}
+
+// CloseCache releases any cache resources held by the client. It is safe
+// to call even when no cache was configured.
+func (c *Client) CloseCache() error {
+	store, err := c.cacheStore()
+	if err != nil || store == nil {
+		return err
+	}
+	return store.Close()
+}
+
 // Resolve resolves a reference (tag or digest) to its manifest digest.
 func (c *Client) Resolve(ctx context.Context, ref string) (string, error) {
+	if hasDigest(ref) {
+		return digestFromRef(ref), nil
+	}
+
+	store, err := c.cacheStore()
+	if err != nil {
+		return "", err
+	}
+	if store != nil {
+		if digest, cerr := store.ResolveTag(ctx, ref); cerr == nil {
+			return digest, nil
+		}
+		// Cache failed: fall through to the uncached path rather than
+		// propagating cache errors to callers.
+	}
+
 	repo, tag, err := c.newRepository(ref)
 	if err != nil {
 		return "", err
 	}
-
 	if tag == "" {
 		return "", fmt.Errorf("reference %q must include a tag or digest", ref)
 	}
-
 	desc, err := repo.Resolve(ctx, tag)
 	if err != nil {
 		return "", fmt.Errorf("resolving %s: %w", ref, err)
 	}
-
 	return desc.Digest.String(), nil
 }
 
 // listRepositories queries the OCI registry catalog to find all repositories
 // under the given base path.
 func (c *Client) listRepositories(ctx context.Context, registryBase string) ([]string, error) {
+	store, err := c.cacheStore()
+	if err != nil {
+		return nil, err
+	}
+	if store != nil {
+		if repos, cerr := store.Repositories(ctx, registryBase); cerr == nil {
+			return repos, nil
+		}
+	}
+
 	host, prefix := SplitRegistryBase(registryBase)
 
 	reg, err := remote.NewRegistry(host)
@@ -124,6 +219,16 @@ var errStopIteration = errors.New("stop iteration")
 
 // List returns all tags in the given repository.
 func (c *Client) List(ctx context.Context, repository string) ([]string, error) {
+	store, err := c.cacheStore()
+	if err != nil {
+		return nil, err
+	}
+	if store != nil {
+		if tags, cerr := store.Tags(ctx, repository); cerr == nil {
+			return tags, nil
+		}
+	}
+
 	repo, err := c.newRepositoryFromName(repository)
 	if err != nil {
 		return nil, err
@@ -139,6 +244,34 @@ func (c *Client) List(ctx context.Context, repository string) ([]string, error) 
 	}
 
 	return tags, nil
+}
+
+// fetchWithStore fetches a manifest or blob through the cache store when
+// configured, falling back to a direct registry fetch on miss or error.
+// repoName is the "host/repo" path used to satisfy a cache miss.
+func (c *Client) fetchWithStore(ctx context.Context, repo *remote.Repository, repoName string, desc ocispec.Descriptor) (io.ReadCloser, error) {
+	store, err := c.cacheStore()
+	if err == nil && store != nil {
+		if rc, cerr := store.Fetch(ctx, repoName, desc); cerr == nil {
+			return rc, nil
+		}
+	}
+	return repo.Fetch(ctx, desc)
+}
+
+// resolveDescriptor returns the manifest descriptor for ref. When a cache
+// store is configured it is consulted first, and its ResolveManifest
+// result carries enough information (size, media type) for the content
+// store's verified Push path. Cache errors fall back to the registry via
+// the oras-go repository's Resolve (a HEAD).
+func (c *Client) resolveDescriptor(ctx context.Context, repo *remote.Repository, ref, tag string) (ocispec.Descriptor, error) {
+	store, err := c.cacheStore()
+	if err == nil && store != nil {
+		if desc, cerr := store.ResolveManifest(ctx, ref); cerr == nil {
+			return desc, nil
+		}
+	}
+	return repo.Resolve(ctx, tag)
 }
 
 // newRepository creates a remote.Repository from a full OCI reference string

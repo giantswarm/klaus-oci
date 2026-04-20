@@ -150,6 +150,58 @@ for _, w := range deps.Warnings {
 }
 ```
 
+### Registry response cache
+
+Network roundtrips dominate the latency of `Describe*`, `Resolve*Ref`, and
+`List*Versions`. Enable the on-disk cache to make repeated invocations fast:
+
+```go
+client := oci.NewClient(
+    oci.WithCache("/var/cache/klaus/oci"),
+    oci.WithCacheTTL(30*time.Second, 24*time.Hour),
+    oci.WithCacheMaxSize(2*1024*1024*1024),
+    oci.WithBackgroundRefresh(true),
+)
+defer client.CloseCache()
+```
+
+The cache is **stale-while-revalidate** with digest-based invalidation:
+
+- **Fresh TTL** (default 30s): entries are returned without contacting the
+  registry.
+- **Stale TTL** (default 24h for tags/refs, 7 days for the catalog): entries
+  past the fresh window are returned immediately *and* a background refresh
+  is issued. HEAD probes on refs use `Docker-Content-Digest`; tag and catalog
+  lists use conditional GETs (`If-None-Match` / `ETag`).
+- **Past stale TTL**: the next call refetches synchronously.
+- **HEAD/digest mismatch**: when a HEAD returns a new digest, the ref entry
+  is rewritten so subsequent reads see the updated manifest.
+
+Concurrent misses for the same key coalesce via singleflight, so a burst of
+parallel `Resolve` calls produces a single registry request.
+
+#### On-disk layout
+
+```
+<root>/
+  blobs/                 # oras-go content store (content-addressed)
+    sha256/aa/bb.../...
+  refs/<sha256-of-key>.json    # tag -> digest index (per full ref)
+  tags/<sha256-of-key>.json    # tag list per repository
+  catalog/<sha256-of-key>.json # catalog per registry base
+```
+
+JSON indexes are written via temp-file + `rename` in the same directory, so
+concurrent writers never observe partial files. The content store is an LRU
+(by mtime) bounded by `WithCacheMaxSize`; a non-positive size disables
+eviction.
+
+If caching is not configured (no `WithCache`), the client behaves exactly
+as before. This cache is orthogonal to the per-destination
+`.oci-cache.json` written by `PullPersonality` / `PullPlugin`, which
+remains the authority for "is this artifact already extracted at this
+path".
+
 ## Artifact Types
 
 Klaus has three artifact types with different OCI representations:
