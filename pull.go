@@ -27,7 +27,7 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 		return nil, fmt.Errorf("reference %q must include a tag or digest", ref)
 	}
 
-	manifestDesc, err := repo.Resolve(ctx, tag)
+	manifestDesc, err := c.resolveDescriptor(ctx, repo, ref, tag)
 	if err != nil {
 		return nil, fmt.Errorf("resolving %s: %w", ref, err)
 	}
@@ -46,7 +46,9 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 		return &pullResult{Digest: digest, Ref: ref, Cached: true, ConfigJSON: configJSON, Annotations: annotations}, nil
 	}
 
-	manifestRC, err := repo.Fetch(ctx, manifestDesc)
+	repoName := RepositoryFromRef(ref)
+
+	manifestRC, err := c.fetchWithStore(ctx, repo, repoName, manifestDesc)
 	if err != nil {
 		return nil, fmt.Errorf("fetching manifest for %s: %w", ref, err)
 	}
@@ -57,7 +59,7 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 		return nil, fmt.Errorf("parsing manifest for %s: %w", ref, err)
 	}
 
-	configRC, err := repo.Fetch(ctx, manifest.Config)
+	configRC, err := c.fetchWithStore(ctx, repo, repoName, manifest.Config)
 	if err != nil {
 		return nil, fmt.Errorf("fetching config for %s: %w", ref, err)
 	}
@@ -78,7 +80,7 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 		return nil, fmt.Errorf("no content layer found in %s (expected media type %s)", ref, kind.ContentMediaType)
 	}
 
-	layerRC, err := repo.Fetch(ctx, *contentLayer)
+	layerRC, err := c.fetchWithStore(ctx, repo, repoName, *contentLayer)
 	if err != nil {
 		return nil, fmt.Errorf("fetching content layer for %s: %w", ref, err)
 	}
