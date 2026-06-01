@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.33](https://github.com/giantswarm/klaus-oci/compare/v0.0.32...v0.0.33) (2026-06-01)
+
+
+### Changed
+
+* align files according to platform standards ([#44](https://github.com/giantswarm/klaus-oci/issues/44)) ([daa6c6b](https://github.com/giantswarm/klaus-oci/commit/daa6c6b152f61759e921c1a9a94e58f9d0209fe7))
+* align files according to platform standards ([#47](https://github.com/giantswarm/klaus-oci/issues/47)) ([d3654a0](https://github.com/giantswarm/klaus-oci/commit/d3654a0cb6e8e89a0e11b5926948878764b9dda6))
+
 ## [Unreleased]
 
 ### Fixed
