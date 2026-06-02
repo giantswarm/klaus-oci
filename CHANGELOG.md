@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.35](https://github.com/giantswarm/klaus-oci/compare/v0.0.34...v0.0.35) (2026-06-02)
+
+
+### Changed
+
+* **deps:** update actions/checkout action to v6.0.3 ([#49](https://github.com/giantswarm/klaus-oci/issues/49)) ([faa2b49](https://github.com/giantswarm/klaus-oci/commit/faa2b492d1ec3927265442542fe61a7f3600f322))
+* **deps:** update dependency architect to v9 ([#46](https://github.com/giantswarm/klaus-oci/issues/46)) ([fbfee84](https://github.com/giantswarm/klaus-oci/commit/fbfee846dc2759fb4f9eff5d448116eb557bae9d))
+* **deps:** update dependency architect to v9.0.2 ([#50](https://github.com/giantswarm/klaus-oci/issues/50)) ([dd60a26](https://github.com/giantswarm/klaus-oci/commit/dd60a26cfb43b3d415a229e3fc5a8c9169fab57a))
+* **main:** release 0.0.33 ([#45](https://github.com/giantswarm/klaus-oci/issues/45)) ([a51edcd](https://github.com/giantswarm/klaus-oci/commit/a51edcd31cad0026fde6639f232a4a4e003ca644))
+* **main:** release 0.0.34 ([#48](https://github.com/giantswarm/klaus-oci/issues/48)) ([d1ff658](https://github.com/giantswarm/klaus-oci/commit/d1ff658b6e0b325c6b4db54c56f3a5293d7caaf5))
+
 ## [0.0.34](https://github.com/giantswarm/klaus-oci/compare/v0.0.33...v0.0.34) (2026-06-01)
 
 
