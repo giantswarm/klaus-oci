@@ -8,7 +8,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	golang.org/x/sync v0.21.0
 	gopkg.in/yaml.v3 v3.0.1
-	oras.land/oras-go/v2 v2.6.0
+	oras.land/oras-go/v2 v2.6.1
 )
 
 require (
