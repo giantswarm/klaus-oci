@@ -62,7 +62,7 @@ func TestCredentialFromJSON(t *testing.T) {
 			Auths: map[string]dockerAuthEntry{
 				"myacr.azurecr.io": {
 					Auth:          base64.StdEncoding.EncodeToString([]byte("00000000-0000-0000-0000-000000000000:")),
-					IdentityToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test-refresh-token",
+					IdentityToken: "test-identity-token-refresh-value",
 				},
 			},
 		}
@@ -75,7 +75,7 @@ func TestCredentialFromJSON(t *testing.T) {
 		if !ok {
 			t.Fatal("expected credential to be found")
 		}
-		if cred.RefreshToken != "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test-refresh-token" {
+		if cred.RefreshToken != "test-identity-token-refresh-value" {
 			t.Errorf("RefreshToken = %q, want identity token value", cred.RefreshToken)
 		}
 		if cred.Username != "" || cred.Password != "" {

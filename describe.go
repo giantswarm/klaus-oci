@@ -126,7 +126,7 @@ func (c *Client) fetchManifest(ctx context.Context, ref string) (*fetchedManifes
 	if err != nil {
 		return nil, fmt.Errorf("fetching manifest for %s: %w", ref, err)
 	}
-	defer manifestRC.Close()
+	defer func() { _ = manifestRC.Close() }()
 
 	var manifest ocispec.Manifest
 	if err := json.NewDecoder(manifestRC).Decode(&manifest); err != nil {
@@ -148,7 +148,7 @@ func fetchConfigBlob(ctx context.Context, repo *remote.Repository, ref string, d
 	if err != nil {
 		return nil, fmt.Errorf("fetching config for %s: %w", ref, err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	data, err := io.ReadAll(rc)
 	if err != nil {

@@ -9,12 +9,12 @@ import (
 )
 
 func TestResolvePersonalityDeps(t *testing.T) {
-	pluginBaseBlob := pluginConfigBlob{Skills: []string{"kubernetes", "fluxcd"}}
+	pluginBaseBlob := pluginConfigBlob{Skills: []string{testKeywordKubernetes, testNameFluxCD}}
 	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
 	pluginBaseAnnotations := buildKlausAnnotations(commonMetadata{
-		Name:        "gs-base",
-		Description: "Base plugin",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
+		Name:        testNameGSBase,
+		Description: testDescBasePlugin,
+		Author:      &Author{Name: testAuthorGiantSwarmGmbH},
 	})
 
 	pluginSREBlob := pluginConfigBlob{Commands: []string{"check-cluster"}}
@@ -26,27 +26,27 @@ func TestResolvePersonalityDeps(t *testing.T) {
 
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
-		AnnotationDescription: "Go toolchain for Klaus",
-		AnnotationAuthorName:  "Giant Swarm GmbH",
+		AnnotationDescription: testDescGoToolchainKlaus,
+		AnnotationAuthorName:  testAuthorGiantSwarmGmbH,
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-plugins/gs-base": {
+		testRepoPluginGSBase: {
 			configJSON:      pluginBaseJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     pluginBaseAnnotations,
 		},
 		"giantswarm/klaus-plugins/gs-sre": {
 			configJSON:      pluginSREJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v0.5.0"},
+			tags:            []string{testTagV050},
 			annotations:     pluginSREAnnotations,
 		},
-		"giantswarm/klaus-toolchains/go": {
+		testRepoToolchainGo: {
 			configJSON:      []byte(`{"architecture":"amd64"}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v1.2.0"},
+			tags:            []string{testTagV120},
 			annotations:     toolchainAnnotations,
 		},
 	})
@@ -56,14 +56,14 @@ func TestResolvePersonalityDeps(t *testing.T) {
 	client := NewClient(WithPlainHTTP(true))
 
 	personality := Personality{
-		Name: "sre",
+		Name: testNameSRE,
 		Toolchain: ToolchainReference{
 			Repository: host + "/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.2.0",
+			Tag:        testTagV120,
 		},
 		Plugins: []PluginReference{
-			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: "v1.0.0"},
-			{Repository: host + "/giantswarm/klaus-plugins/gs-sre", Tag: "v0.5.0"},
+			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: testTagV100},
+			{Repository: host + "/giantswarm/klaus-plugins/gs-sre", Tag: testTagV050},
 		},
 	}
 
@@ -79,32 +79,32 @@ func TestResolvePersonalityDeps(t *testing.T) {
 	if deps.Toolchain == nil {
 		t.Fatal("Toolchain is nil, want non-nil")
 	}
-	if deps.Toolchain.Toolchain.Name != "go" {
-		t.Errorf("Toolchain.Name = %q, want %q", deps.Toolchain.Toolchain.Name, "go")
+	if deps.Toolchain.Name != "go" {
+		t.Errorf("Toolchain.Name = %q, want %q", deps.Toolchain.Name, "go")
 	}
-	if deps.Toolchain.Toolchain.Version != "v1.2.0" {
-		t.Errorf("Toolchain.Version = %q, want %q", deps.Toolchain.Toolchain.Version, "v1.2.0")
+	if deps.Toolchain.Version != testTagV120 {
+		t.Errorf("Toolchain.Version = %q, want %q", deps.Toolchain.Version, testTagV120)
 	}
-	if deps.Toolchain.Toolchain.Description != "Go toolchain for Klaus" {
-		t.Errorf("Toolchain.Description = %q", deps.Toolchain.Toolchain.Description)
+	if deps.Toolchain.Description != testDescGoToolchainKlaus {
+		t.Errorf("Toolchain.Description = %q", deps.Toolchain.Description)
 	}
 
 	if len(deps.Plugins) != 2 {
 		t.Fatalf("Plugins length = %d, want 2", len(deps.Plugins))
 	}
 
-	names := []string{deps.Plugins[0].Plugin.Name, deps.Plugins[1].Plugin.Name}
+	names := []string{deps.Plugins[0].Name, deps.Plugins[1].Name}
 	slices.Sort(names)
-	if names[0] != "gs-base" || names[1] != "gs-sre" {
+	if names[0] != testNameGSBase || names[1] != "gs-sre" {
 		t.Errorf("Plugin names = %v, want [gs-base gs-sre]", names)
 	}
 
 	for _, dp := range deps.Plugins {
-		if dp.ArtifactInfo.Digest == "" {
-			t.Errorf("Plugin %q: Digest is empty", dp.Plugin.Name)
+		if dp.Digest == "" {
+			t.Errorf("Plugin %q: Digest is empty", dp.Name)
 		}
-		if dp.ArtifactInfo.Tag == "" {
-			t.Errorf("Plugin %q: Tag is empty", dp.Plugin.Name)
+		if dp.Tag == "" {
+			t.Errorf("Plugin %q: Tag is empty", dp.Name)
 		}
 	}
 }
@@ -113,26 +113,26 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 	pluginBaseBlob := pluginConfigBlob{}
 	pluginBaseJSON, _ := json.Marshal(pluginBaseBlob)
 	pluginBaseAnnotations := buildKlausAnnotations(commonMetadata{
-		Name:        "gs-base",
-		Description: "Base plugin",
+		Name:        testNameGSBase,
+		Description: testDescBasePlugin,
 	})
 
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
-		AnnotationDescription: "Go toolchain",
+		AnnotationDescription: testDescGoToolchain,
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-plugins/gs-base": {
+		testRepoPluginGSBase: {
 			configJSON:      pluginBaseJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     pluginBaseAnnotations,
 		},
-		"giantswarm/klaus-toolchains/go": {
+		testRepoToolchainGo: {
 			configJSON:      []byte(`{}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     toolchainAnnotations,
 		},
 	})
@@ -142,14 +142,14 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 	client := NewClient(WithPlainHTTP(true))
 
 	personality := Personality{
-		Name: "sre",
+		Name: testNameSRE,
 		Toolchain: ToolchainReference{
 			Repository: host + "/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.0.0",
+			Tag:        testTagV100,
 		},
 		Plugins: []PluginReference{
-			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: "v1.0.0"},
-			{Repository: host + "/giantswarm/klaus-plugins/gs-missing", Tag: "v1.0.0"},
+			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: testTagV100},
+			{Repository: host + "/giantswarm/klaus-plugins/gs-missing", Tag: testTagV100},
 		},
 	}
 
@@ -165,8 +165,8 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 	if len(deps.Plugins) != 1 {
 		t.Fatalf("Plugins length = %d, want 1", len(deps.Plugins))
 	}
-	if deps.Plugins[0].Plugin.Name != "gs-base" {
-		t.Errorf("Plugin.Name = %q, want %q", deps.Plugins[0].Plugin.Name, "gs-base")
+	if deps.Plugins[0].Name != testNameGSBase {
+		t.Errorf("Plugin.Name = %q, want %q", deps.Plugins[0].Name, testNameGSBase)
 	}
 
 	if deps.Toolchain == nil {
@@ -177,13 +177,13 @@ func TestResolvePersonalityDeps_MissingPlugin(t *testing.T) {
 func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
 	pluginBlob := pluginConfigBlob{}
 	pluginJSON, _ := json.Marshal(pluginBlob)
-	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: "gs-base"})
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: testNameGSBase})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-plugins/gs-base": {
+		testRepoPluginGSBase: {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     pluginAnnotations,
 		},
 	})
@@ -193,13 +193,13 @@ func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
 	client := NewClient(WithPlainHTTP(true))
 
 	personality := Personality{
-		Name: "sre",
+		Name: testNameSRE,
 		Toolchain: ToolchainReference{
 			Repository: host + "/giantswarm/klaus-toolchains/missing",
-			Tag:        "v1.0.0",
+			Tag:        testTagV100,
 		},
 		Plugins: []PluginReference{
-			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: "v1.0.0"},
+			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: testTagV100},
 		},
 	}
 
@@ -218,22 +218,22 @@ func TestResolvePersonalityDeps_MissingToolchain(t *testing.T) {
 	if len(deps.Plugins) != 1 {
 		t.Fatalf("Plugins length = %d, want 1", len(deps.Plugins))
 	}
-	if deps.Plugins[0].Plugin.Name != "gs-base" {
-		t.Errorf("Plugin.Name = %q, want %q", deps.Plugins[0].Plugin.Name, "gs-base")
+	if deps.Plugins[0].Name != testNameGSBase {
+		t.Errorf("Plugin.Name = %q, want %q", deps.Plugins[0].Name, testNameGSBase)
 	}
 }
 
 func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
-		AnnotationDescription: "Go toolchain",
+		AnnotationDescription: testDescGoToolchain,
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-toolchains/go": {
+		testRepoToolchainGo: {
 			configJSON:      []byte(`{}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     toolchainAnnotations,
 		},
 	})
@@ -243,10 +243,10 @@ func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 	client := NewClient(WithPlainHTTP(true))
 
 	personality := Personality{
-		Name: "minimal",
+		Name: testNameMinimal,
 		Toolchain: ToolchainReference{
 			Repository: host + "/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.0.0",
+			Tag:        testTagV100,
 		},
 	}
 
@@ -261,8 +261,8 @@ func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 	if deps.Toolchain == nil {
 		t.Fatal("Toolchain is nil, want non-nil")
 	}
-	if deps.Toolchain.Toolchain.Name != "go" {
-		t.Errorf("Toolchain.Name = %q, want %q", deps.Toolchain.Toolchain.Name, "go")
+	if deps.Toolchain.Name != "go" {
+		t.Errorf("Toolchain.Name = %q, want %q", deps.Toolchain.Name, "go")
 	}
 	if len(deps.Plugins) != 0 {
 		t.Errorf("Plugins = %v, want empty", deps.Plugins)
@@ -272,13 +272,13 @@ func TestResolvePersonalityDeps_NoPlugins(t *testing.T) {
 func TestResolvePersonalityDeps_EmptyToolchain(t *testing.T) {
 	pluginBlob := pluginConfigBlob{}
 	pluginJSON, _ := json.Marshal(pluginBlob)
-	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: "gs-base"})
+	pluginAnnotations := buildKlausAnnotations(commonMetadata{Name: testNameGSBase})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-plugins/gs-base": {
+		testRepoPluginGSBase: {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     pluginAnnotations,
 		},
 	})
@@ -290,7 +290,7 @@ func TestResolvePersonalityDeps_EmptyToolchain(t *testing.T) {
 	personality := Personality{
 		Name: "no-toolchain",
 		Plugins: []PluginReference{
-			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: "v1.0.0"},
+			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: testTagV100},
 		},
 	}
 
@@ -316,10 +316,10 @@ func TestResolvePersonalityDeps_AllPluginsMissing(t *testing.T) {
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-toolchains/go": {
+		testRepoToolchainGo: {
 			configJSON:      []byte(`{}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     toolchainAnnotations,
 		},
 	})
@@ -332,11 +332,11 @@ func TestResolvePersonalityDeps_AllPluginsMissing(t *testing.T) {
 		Name: "all-missing",
 		Toolchain: ToolchainReference{
 			Repository: host + "/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.0.0",
+			Tag:        testTagV100,
 		},
 		Plugins: []PluginReference{
-			{Repository: host + "/giantswarm/klaus-plugins/missing-a", Tag: "v1.0.0"},
-			{Repository: host + "/giantswarm/klaus-plugins/missing-b", Tag: "v2.0.0"},
+			{Repository: host + "/giantswarm/klaus-plugins/missing-a", Tag: testTagV100},
+			{Repository: host + "/giantswarm/klaus-plugins/missing-b", Tag: testTagV200},
 		},
 	}
 
@@ -384,15 +384,15 @@ func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
 	pluginBlob := pluginConfigBlob{}
 	pluginJSON, _ := json.Marshal(pluginBlob)
 	pluginAnnotations := buildKlausAnnotations(commonMetadata{
-		Name:        "gs-base",
-		Description: "Base plugin",
+		Name:        testNameGSBase,
+		Description: testDescBasePlugin,
 	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-plugins/gs-base": {
+		testRepoPluginGSBase: {
 			configJSON:      pluginJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v2.3.0"},
+			tags:            []string{testTagV230},
 			annotations:     pluginAnnotations,
 		},
 	})
@@ -404,7 +404,7 @@ func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
 	personality := Personality{
 		Name: "version-check",
 		Plugins: []PluginReference{
-			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: "v2.3.0"},
+			{Repository: host + "/giantswarm/klaus-plugins/gs-base", Tag: testTagV230},
 		},
 	}
 
@@ -416,25 +416,25 @@ func TestResolvePersonalityDeps_VersionFromTag(t *testing.T) {
 	if len(deps.Plugins) != 1 {
 		t.Fatalf("Plugins length = %d, want 1", len(deps.Plugins))
 	}
-	if deps.Plugins[0].Plugin.Version != "v2.3.0" {
-		t.Errorf("Plugin.Version = %q, want %q (from OCI tag)", deps.Plugins[0].Plugin.Version, "v2.3.0")
+	if deps.Plugins[0].Version != testTagV230 {
+		t.Errorf("Plugin.Version = %q, want %q (from OCI tag)", deps.Plugins[0].Version, testTagV230)
 	}
-	if deps.Plugins[0].ArtifactInfo.Tag != "v2.3.0" {
-		t.Errorf("ArtifactInfo.Tag = %q, want %q", deps.Plugins[0].ArtifactInfo.Tag, "v2.3.0")
+	if deps.Plugins[0].Tag != testTagV230 {
+		t.Errorf("ArtifactInfo.Tag = %q, want %q", deps.Plugins[0].Tag, testTagV230)
 	}
 }
 
 func TestResolvePersonalityDeps_ToolchainVersionFromTag(t *testing.T) {
 	toolchainAnnotations := map[string]string{
 		AnnotationName:        "go",
-		AnnotationDescription: "Go toolchain",
+		AnnotationDescription: testDescGoToolchain,
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-toolchains/go": {
+		testRepoToolchainGo: {
 			configJSON:      []byte(`{}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v1.5.0"},
+			tags:            []string{testTagV150},
 			annotations:     toolchainAnnotations,
 		},
 	})
@@ -447,7 +447,7 @@ func TestResolvePersonalityDeps_ToolchainVersionFromTag(t *testing.T) {
 		Name: "tc-version",
 		Toolchain: ToolchainReference{
 			Repository: host + "/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.5.0",
+			Tag:        testTagV150,
 		},
 	}
 
@@ -459,10 +459,10 @@ func TestResolvePersonalityDeps_ToolchainVersionFromTag(t *testing.T) {
 	if deps.Toolchain == nil {
 		t.Fatal("Toolchain is nil, want non-nil")
 	}
-	if deps.Toolchain.Toolchain.Version != "v1.5.0" {
-		t.Errorf("Toolchain.Version = %q, want %q (from OCI tag)", deps.Toolchain.Toolchain.Version, "v1.5.0")
+	if deps.Toolchain.Version != testTagV150 {
+		t.Errorf("Toolchain.Version = %q, want %q (from OCI tag)", deps.Toolchain.Version, testTagV150)
 	}
-	if deps.Toolchain.Toolchain.Name != "go" {
-		t.Errorf("Toolchain.Name = %q, want %q", deps.Toolchain.Toolchain.Name, "go")
+	if deps.Toolchain.Name != "go" {
+		t.Errorf("Toolchain.Name = %q, want %q", deps.Toolchain.Name, "go")
 	}
 }

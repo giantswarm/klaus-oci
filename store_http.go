@@ -63,7 +63,7 @@ func (d *diskCache) probeTag(ctx context.Context, host, repo, tag, ifNoneMatch s
 	if err != nil {
 		return ocispec.Descriptor{}, "", fmt.Errorf("HEAD %s: %w", u, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotModified {
 		return ocispec.Descriptor{}, "", fmt.Errorf("HEAD %s: unexpected status %s", u, resp.Status)
 	}
@@ -134,11 +134,11 @@ func (d *diskCache) fetchTags(ctx context.Context, host, repo, ifNoneMatch strin
 			return nil, "", false, fmt.Errorf("GET %s: %w", next, rerr)
 		}
 		if first && resp.StatusCode == http.StatusNotModified {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil, ifNoneMatch, true, nil
 		}
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil, "", false, fmt.Errorf("GET %s: unexpected status %s", next, resp.Status)
 		}
 		if first {
@@ -149,7 +149,7 @@ func (d *diskCache) fetchTags(ctx context.Context, host, repo, ifNoneMatch strin
 		}
 		dec := json.NewDecoder(io.LimitReader(resp.Body, 32*1024*1024))
 		derr := dec.Decode(&page)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if derr != nil {
 			return nil, "", false, fmt.Errorf("parsing tag list from %s: %w", next, derr)
 		}
@@ -182,7 +182,7 @@ func (d *diskCache) fetchCatalog(ctx context.Context, host, prefix string) ([]st
 			return nil, fmt.Errorf("GET %s: %w", next, err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil, fmt.Errorf("GET %s: unexpected status %s", next, resp.Status)
 		}
 		var page struct {
@@ -190,7 +190,7 @@ func (d *diskCache) fetchCatalog(ctx context.Context, host, prefix string) ([]st
 		}
 		dec := json.NewDecoder(io.LimitReader(resp.Body, 32*1024*1024))
 		derr := dec.Decode(&page)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if derr != nil {
 			return nil, fmt.Errorf("parsing catalog from %s: %w", next, derr)
 		}
@@ -240,7 +240,7 @@ func (d *diskCache) fetchContent(ctx context.Context, host, repo string, desc oc
 		// but do not surface the response body: some registries echo
 		// request headers (including auth artefacts) in error bodies.
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("GET %s: unexpected status %s", u, resp.Status)
 	}
 	return resp.Body, nil

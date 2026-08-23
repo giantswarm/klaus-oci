@@ -84,7 +84,7 @@ func newDiskCache(cfg cacheConfig, authClient *auth.Client, plainHTTP bool) (*di
 		return nil, errors.New("cache directory required")
 	}
 	for _, sub := range []string{"blobs", "refs", "tags", "catalog"} {
-		if err := os.MkdirAll(filepath.Join(cfg.dir, sub), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(cfg.dir, sub), 0o750); err != nil {
 			return nil, fmt.Errorf("cache setup: %w", err)
 		}
 	}
@@ -303,7 +303,7 @@ func (d *diskCache) Fetch(ctx context.Context, repo string, desc ocispec.Descrip
 		if err != nil {
 			return nil, err
 		}
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 
 		var limit int64
 		if desc.Size > 0 {
@@ -447,7 +447,7 @@ func (d *diskCache) indexPath(sub, key string) string {
 
 func readRefIndex(path string) (refIndexEntry, bool) {
 	var e refIndexEntry
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return e, false
 	}
@@ -459,7 +459,7 @@ func readRefIndex(path string) (refIndexEntry, bool) {
 
 func readTagIndex(path string) (tagIndexEntry, bool) {
 	var e tagIndexEntry
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return e, false
 	}
@@ -471,7 +471,7 @@ func readTagIndex(path string) (tagIndexEntry, bool) {
 
 func readCatalogIndex(path string) (catalogIndexEntry, bool) {
 	var e catalogIndexEntry
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return e, false
 	}
@@ -491,32 +491,32 @@ func writeIndexAtomic(path string, v any) error {
 		return err
 	}
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	var suffix [8]byte
 	_, _ = rand.Read(suffix[:])
 	tmp := filepath.Join(dir, filepath.Base(path)+".tmp."+hex.EncodeToString(suffix[:]))
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := os.OpenFile(filepath.Clean(tmp), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
 	if _, err := f.Write(data); err != nil {
-		f.Close()
-		os.Remove(tmp)
+		_ = f.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(tmp)
+		_ = f.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	return nil

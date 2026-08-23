@@ -7,20 +7,20 @@ import (
 
 func TestPluginConfigBlob_ExcludesCommonMetadata(t *testing.T) {
 	p := Plugin{
-		Name:        "gs-base",
-		Version:     "v1.0.0",
+		Name:        testNameGSBase,
+		Version:     testTagV100,
 		Description: "A base plugin",
-		Author:      &Author{Name: "Giant Swarm", Email: "dev@giantswarm.io"},
-		Homepage:    "https://giantswarm.io",
-		SourceRepo:  "https://github.com/giantswarm/gs-base",
-		License:     "Apache-2.0",
-		Keywords:    []string{"platform", "base"},
-		Skills:      []string{"kubernetes", "fluxcd"},
+		Author:      &Author{Name: testAuthorGiantSwarm, Email: testEmailDev},
+		Homepage:    testHomeURL,
+		SourceRepo:  testSourceGSBase,
+		License:     testLicenseApache2,
+		Keywords:    []string{testNamePlatform, "base"},
+		Skills:      []string{testKeywordKubernetes, testNameFluxCD},
 		Commands:    []string{"init", "deploy"},
-		Agents:      []string{"code-reviewer"},
+		Agents:      []string{testNameCodeReviewer},
 		HasHooks:    true,
-		MCPServers:  []string{"github"},
-		LSPServers:  []string{"gopls"},
+		MCPServers:  []string{testNameGitHub},
+		LSPServers:  []string{testNameGopls},
 	}
 
 	blob := pluginConfigBlob{
@@ -42,7 +42,7 @@ func TestPluginConfigBlob_ExcludesCommonMetadata(t *testing.T) {
 		t.Fatalf("json.Unmarshal error = %v", err)
 	}
 
-	for _, forbidden := range []string{"name", "description", "author", "homepage", "repository", "license", "keywords"} {
+	for _, forbidden := range []string{testKeyName, testKeyDescription, testKeyAuthor, testKeyHomepage, testKeyRepository, testKeyLicense, testKeyKeywords} {
 		if _, ok := raw[forbidden]; ok {
 			t.Errorf("config blob should not contain %q, but it does", forbidden)
 		}
@@ -68,19 +68,19 @@ func TestPluginConfigBlob_EmptyComponents(t *testing.T) {
 
 func TestPersonalityConfigBlob_ExcludesCommonMetadata(t *testing.T) {
 	p := Personality{
-		Name:        "sre",
-		Description: "SRE personality",
-		Author:      &Author{Name: "Giant Swarm"},
-		Homepage:    "https://giantswarm.io",
+		Name:        testNameSRE,
+		Description: testDescSREPersonality,
+		Author:      &Author{Name: testAuthorGiantSwarm},
+		Homepage:    testHomeURL,
 		SourceRepo:  "https://github.com/giantswarm/sre",
-		License:     "Apache-2.0",
-		Keywords:    []string{"sre", "ops"},
+		License:     testLicenseApache2,
+		Keywords:    []string{testNameSRE, "ops"},
 		Toolchain: ToolchainReference{
-			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.0.0",
+			Repository: testRefToolchainGo,
+			Tag:        testTagV100,
 		},
 		Plugins: []PluginReference{
-			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base", Tag: "v1.0.0"},
+			{Repository: testRefPluginGSBase, Tag: testTagV100},
 		},
 	}
 
@@ -99,13 +99,13 @@ func TestPersonalityConfigBlob_ExcludesCommonMetadata(t *testing.T) {
 		t.Fatalf("json.Unmarshal error = %v", err)
 	}
 
-	for _, forbidden := range []string{"name", "description", "author", "homepage", "repository", "license", "keywords"} {
+	for _, forbidden := range []string{testKeyName, testKeyDescription, testKeyAuthor, testKeyHomepage, testKeyRepository, testKeyLicense, testKeyKeywords} {
 		if _, ok := raw[forbidden]; ok {
 			t.Errorf("config blob should not contain %q, but it does", forbidden)
 		}
 	}
 
-	if _, ok := raw["toolchain"]; !ok {
+	if _, ok := raw[testKindToolchain]; !ok {
 		t.Error("config blob should contain toolchain")
 	}
 	if _, ok := raw["plugins"]; !ok {
@@ -125,7 +125,7 @@ func TestPersonalityConfigBlob_EmptyComposition(t *testing.T) {
 		t.Fatalf("json.Unmarshal error = %v", err)
 	}
 
-	for _, forbidden := range []string{"name", "description", "author", "homepage", "license", "keywords"} {
+	for _, forbidden := range []string{testKeyName, testKeyDescription, testKeyAuthor, testKeyHomepage, testKeyLicense, testKeyKeywords} {
 		if _, ok := raw[forbidden]; ok {
 			t.Errorf("empty config blob should not contain %q", forbidden)
 		}
@@ -138,27 +138,27 @@ func TestPersonalityConfigBlob_EmptyComposition(t *testing.T) {
 
 func TestPushPlugin_AnnotationsFromMetadata(t *testing.T) {
 	p := Plugin{
-		Name:        "gs-base",
+		Name:        testNameGSBase,
 		Description: "Giant Swarm base plugin",
-		Author:      &Author{Name: "Giant Swarm", Email: "dev@giantswarm.io", URL: "https://giantswarm.io"},
+		Author:      &Author{Name: testAuthorGiantSwarm, Email: testEmailDev, URL: testHomeURL},
 		Homepage:    "https://giantswarm.io/plugins/gs-base",
-		SourceRepo:  "https://github.com/giantswarm/gs-base",
-		License:     "Apache-2.0",
-		Keywords:    []string{"platform", "base"},
-		Skills:      []string{"kubernetes"},
+		SourceRepo:  testSourceGSBase,
+		License:     testLicenseApache2,
+		Keywords:    []string{testNamePlatform, "base"},
+		Skills:      []string{testKeywordKubernetes},
 	}
 
 	annotations := buildKlausAnnotations(p.klausMetadata())
 
 	expected := map[string]string{
-		AnnotationName:        "gs-base",
+		AnnotationName:        testNameGSBase,
 		AnnotationDescription: "Giant Swarm base plugin",
-		AnnotationAuthorName:  "Giant Swarm",
-		AnnotationAuthorEmail: "dev@giantswarm.io",
-		AnnotationAuthorURL:   "https://giantswarm.io",
+		AnnotationAuthorName:  testAuthorGiantSwarm,
+		AnnotationAuthorEmail: testEmailDev,
+		AnnotationAuthorURL:   testHomeURL,
 		AnnotationHomepage:    "https://giantswarm.io/plugins/gs-base",
-		AnnotationRepository:  "https://github.com/giantswarm/gs-base",
-		AnnotationLicense:     "Apache-2.0",
+		AnnotationRepository:  testSourceGSBase,
+		AnnotationLicense:     testLicenseApache2,
 		AnnotationKeywords:    "platform,base",
 	}
 
@@ -175,25 +175,25 @@ func TestPushPlugin_AnnotationsFromMetadata(t *testing.T) {
 
 func TestPushPersonality_AnnotationsFromMetadata(t *testing.T) {
 	p := Personality{
-		Name:        "sre",
-		Description: "SRE personality",
-		Author:      &Author{Name: "Giant Swarm"},
+		Name:        testNameSRE,
+		Description: testDescSREPersonality,
+		Author:      &Author{Name: testAuthorGiantSwarm},
 		Toolchain: ToolchainReference{
-			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.0.0",
+			Repository: testRefToolchainGo,
+			Tag:        testTagV100,
 		},
 	}
 
 	annotations := buildKlausAnnotations(p.klausMetadata())
 
-	if annotations[AnnotationName] != "sre" {
-		t.Errorf("name = %q, want %q", annotations[AnnotationName], "sre")
+	if annotations[AnnotationName] != testNameSRE {
+		t.Errorf("name = %q, want %q", annotations[AnnotationName], testNameSRE)
 	}
-	if annotations[AnnotationDescription] != "SRE personality" {
-		t.Errorf("description = %q, want %q", annotations[AnnotationDescription], "SRE personality")
+	if annotations[AnnotationDescription] != testDescSREPersonality {
+		t.Errorf("description = %q, want %q", annotations[AnnotationDescription], testDescSREPersonality)
 	}
-	if annotations[AnnotationAuthorName] != "Giant Swarm" {
-		t.Errorf("author.name = %q, want %q", annotations[AnnotationAuthorName], "Giant Swarm")
+	if annotations[AnnotationAuthorName] != testAuthorGiantSwarm {
+		t.Errorf("author.name = %q, want %q", annotations[AnnotationAuthorName], testAuthorGiantSwarm)
 	}
 
 	for _, absent := range []string{AnnotationHomepage, AnnotationRepository, AnnotationLicense, AnnotationKeywords, AnnotationAuthorEmail, AnnotationAuthorURL} {
@@ -204,12 +204,12 @@ func TestPushPersonality_AnnotationsFromMetadata(t *testing.T) {
 }
 
 func TestPushPlugin_MinimalMetadata(t *testing.T) {
-	p := Plugin{Name: "minimal"}
+	p := Plugin{Name: testNameMinimal}
 
 	annotations := buildKlausAnnotations(p.klausMetadata())
 
-	if annotations[AnnotationName] != "minimal" {
-		t.Errorf("name = %q, want %q", annotations[AnnotationName], "minimal")
+	if annotations[AnnotationName] != testNameMinimal {
+		t.Errorf("name = %q, want %q", annotations[AnnotationName], testNameMinimal)
 	}
 	if len(annotations) != 1 {
 		t.Errorf("got %d annotations, want 1 (name only)", len(annotations))

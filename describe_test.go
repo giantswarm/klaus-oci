@@ -66,17 +66,17 @@ func newArtifactRegistry(artifacts map[string]testArtifactEntry) *httptest.Serve
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
-		if path == "/v2/" || path == "/v2" {
+		if path == testPathV2Slash || path == testPathV2 {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		if !strings.HasPrefix(path, "/v2/") {
+		if !strings.HasPrefix(path, testPathV2Slash) {
 			http.NotFound(w, r)
 			return
 		}
 
-		rest := strings.TrimPrefix(path, "/v2/")
+		rest := strings.TrimPrefix(path, testPathV2Slash)
 
 		if strings.HasSuffix(rest, "/tags/list") {
 			repoName := strings.TrimSuffix(rest, "/tags/list")
@@ -86,7 +86,7 @@ func newArtifactRegistry(artifacts map[string]testArtifactEntry) *httptest.Serve
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"name": repoName, "tags": art.tags})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{testKeyName: repoName, testKeyTags: art.tags})
 			return
 		}
 
@@ -120,7 +120,7 @@ func newArtifactRegistry(artifacts map[string]testArtifactEntry) *httptest.Serve
 			if r.Method == http.MethodHead {
 				return
 			}
-			w.Write(art.manifestJSON)
+			_, _ = w.Write(art.manifestJSON)
 			return
 		}
 
@@ -136,7 +136,7 @@ func newArtifactRegistry(artifacts map[string]testArtifactEntry) *httptest.Serve
 
 			if blobDigest == art.configDigest.String() {
 				w.Header().Set("Docker-Content-Digest", art.configDigest.String())
-				w.Write(art.configJSON)
+				_, _ = w.Write(art.configJSON)
 				return
 			}
 
@@ -152,11 +152,11 @@ func TestToolchainFromAnnotations(t *testing.T) {
 	t.Run("full annotations", func(t *testing.T) {
 		annotations := map[string]string{
 			AnnotationName:        "go",
-			AnnotationDescription: "Go toolchain for Klaus",
-			AnnotationAuthorName:  "Giant Swarm GmbH",
-			AnnotationHomepage:    "https://docs.giantswarm.io/klaus/",
-			AnnotationRepository:  "https://github.com/giantswarm/klaus-images",
-			AnnotationLicense:     "Apache-2.0",
+			AnnotationDescription: testDescGoToolchainKlaus,
+			AnnotationAuthorName:  testAuthorGiantSwarmGmbH,
+			AnnotationHomepage:    testDocsURL,
+			AnnotationRepository:  testSourceKlausImages,
+			AnnotationLicense:     testLicenseApache2,
 			AnnotationKeywords:    "giantswarm,go,toolchain",
 		}
 
@@ -165,22 +165,22 @@ func TestToolchainFromAnnotations(t *testing.T) {
 		if tc.Name != "go" {
 			t.Errorf("Name = %q, want %q", tc.Name, "go")
 		}
-		if tc.Description != "Go toolchain for Klaus" {
-			t.Errorf("Description = %q, want %q", tc.Description, "Go toolchain for Klaus")
+		if tc.Description != testDescGoToolchainKlaus {
+			t.Errorf("Description = %q, want %q", tc.Description, testDescGoToolchainKlaus)
 		}
-		if tc.Author == nil || tc.Author.Name != "Giant Swarm GmbH" {
+		if tc.Author == nil || tc.Author.Name != testAuthorGiantSwarmGmbH {
 			t.Errorf("Author = %+v, want name 'Giant Swarm GmbH'", tc.Author)
 		}
-		if tc.Homepage != "https://docs.giantswarm.io/klaus/" {
+		if tc.Homepage != testDocsURL {
 			t.Errorf("Homepage = %q", tc.Homepage)
 		}
-		if tc.SourceRepo != "https://github.com/giantswarm/klaus-images" {
+		if tc.SourceRepo != testSourceKlausImages {
 			t.Errorf("SourceRepo = %q", tc.SourceRepo)
 		}
-		if tc.License != "Apache-2.0" {
+		if tc.License != testLicenseApache2 {
 			t.Errorf("License = %q", tc.License)
 		}
-		if len(tc.Keywords) != 3 || tc.Keywords[0] != "giantswarm" || tc.Keywords[1] != "go" || tc.Keywords[2] != "toolchain" {
+		if len(tc.Keywords) != 3 || tc.Keywords[0] != testOrgGiantSwarm || tc.Keywords[1] != "go" || tc.Keywords[2] != testKindToolchain {
 			t.Errorf("Keywords = %v, want [giantswarm go toolchain]", tc.Keywords)
 		}
 		if tc.Version != "" {
@@ -190,13 +190,13 @@ func TestToolchainFromAnnotations(t *testing.T) {
 
 	t.Run("minimal annotations", func(t *testing.T) {
 		annotations := map[string]string{
-			AnnotationName: "python",
+			AnnotationName: testNamePython,
 		}
 
 		tc := toolchainFromAnnotations(annotations)
 
-		if tc.Name != "python" {
-			t.Errorf("Name = %q, want %q", tc.Name, "python")
+		if tc.Name != testNamePython {
+			t.Errorf("Name = %q, want %q", tc.Name, testNamePython)
 		}
 		if tc.Author != nil {
 			t.Errorf("Author = %+v, want nil", tc.Author)
@@ -220,7 +220,7 @@ func TestToolchainFromAnnotations(t *testing.T) {
 	t.Run("version annotation ignored", func(t *testing.T) {
 		annotations := map[string]string{
 			AnnotationName:                     "go",
-			"org.opencontainers.image.version": "v1.2.0",
+			"org.opencontainers.image.version": testTagV120,
 		}
 
 		tc := toolchainFromAnnotations(annotations)
@@ -241,7 +241,7 @@ func TestToolchainFromAnnotations(t *testing.T) {
 		if len(tc.Keywords) != 3 {
 			t.Fatalf("Keywords length = %d, want 3", len(tc.Keywords))
 		}
-		for i, want := range []string{"giantswarm", "go", "toolchain"} {
+		for i, want := range []string{testOrgGiantSwarm, "go", testKindToolchain} {
 			if tc.Keywords[i] != want {
 				t.Errorf("Keywords[%d] = %q, want %q", i, tc.Keywords[i], want)
 			}
@@ -251,27 +251,27 @@ func TestToolchainFromAnnotations(t *testing.T) {
 
 func TestDescribePlugin(t *testing.T) {
 	blob := pluginConfigBlob{
-		Skills:     []string{"kubernetes", "fluxcd"},
-		Commands:   []string{"hello", "init-kubernetes"},
-		Agents:     []string{"code-reviewer"},
+		Skills:     []string{testKeywordKubernetes, testNameFluxCD},
+		Commands:   []string{testValueHello, testNameInitKubernetes},
+		Agents:     []string{testNameCodeReviewer},
 		HasHooks:   true,
-		MCPServers: []string{"github"},
+		MCPServers: []string{testNameGitHub},
 	}
 	configJSON, _ := json.Marshal(blob)
 	annotations := buildKlausAnnotations(commonMetadata{
-		Name:        "gs-base",
-		Description: "A general purpose plugin",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		SourceRepo:  "https://github.com/giantswarm/claude-code",
-		License:     "Apache-2.0",
-		Keywords:    []string{"giantswarm", "platform"},
+		Name:        testNameGSBase,
+		Description: testDescGeneralPlugin,
+		Author:      &Author{Name: testAuthorGiantSwarmGmbH},
+		SourceRepo:  testSourceClaudeCode,
+		License:     testLicenseApache2,
+		Keywords:    []string{testOrgGiantSwarm, testNamePlatform},
 	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-plugins/gs-base": {
+		testRepoPluginGSBase: {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     annotations,
 		},
 	})
@@ -286,46 +286,46 @@ func TestDescribePlugin(t *testing.T) {
 		t.Fatalf("DescribePlugin() error = %v", err)
 	}
 
-	if described.Plugin.Name != "gs-base" {
-		t.Errorf("Name = %q, want %q", described.Plugin.Name, "gs-base")
+	if described.Name != testNameGSBase {
+		t.Errorf("Name = %q, want %q", described.Name, testNameGSBase)
 	}
-	if described.Plugin.Version != "v1.0.0" {
-		t.Errorf("Version = %q, want %q", described.Plugin.Version, "v1.0.0")
+	if described.Version != testTagV100 {
+		t.Errorf("Version = %q, want %q", described.Version, testTagV100)
 	}
-	if described.Plugin.Description != "A general purpose plugin" {
-		t.Errorf("Description = %q", described.Plugin.Description)
+	if described.Description != testDescGeneralPlugin {
+		t.Errorf("Description = %q", described.Description)
 	}
-	if described.Plugin.Author == nil || described.Plugin.Author.Name != "Giant Swarm GmbH" {
-		t.Errorf("Author = %+v", described.Plugin.Author)
+	if described.Author == nil || described.Author.Name != testAuthorGiantSwarmGmbH {
+		t.Errorf("Author = %+v", described.Author)
 	}
-	if described.Plugin.SourceRepo != "https://github.com/giantswarm/claude-code" {
-		t.Errorf("SourceRepo = %q", described.Plugin.SourceRepo)
+	if described.SourceRepo != testSourceClaudeCode {
+		t.Errorf("SourceRepo = %q", described.SourceRepo)
 	}
-	if described.Plugin.License != "Apache-2.0" {
-		t.Errorf("License = %q", described.Plugin.License)
+	if described.License != testLicenseApache2 {
+		t.Errorf("License = %q", described.License)
 	}
-	if len(described.Plugin.Skills) != 2 {
-		t.Errorf("Skills = %v, want 2 items", described.Plugin.Skills)
+	if len(described.Skills) != 2 {
+		t.Errorf("Skills = %v, want 2 items", described.Skills)
 	}
-	if len(described.Plugin.Commands) != 2 {
-		t.Errorf("Commands = %v, want 2 items", described.Plugin.Commands)
+	if len(described.Commands) != 2 {
+		t.Errorf("Commands = %v, want 2 items", described.Commands)
 	}
-	if len(described.Plugin.Agents) != 1 || described.Plugin.Agents[0] != "code-reviewer" {
-		t.Errorf("Agents = %v, want [code-reviewer]", described.Plugin.Agents)
+	if len(described.Agents) != 1 || described.Agents[0] != testNameCodeReviewer {
+		t.Errorf("Agents = %v, want [code-reviewer]", described.Agents)
 	}
-	if !described.Plugin.HasHooks {
+	if !described.HasHooks {
 		t.Error("HasHooks = false, want true")
 	}
-	if len(described.Plugin.MCPServers) != 1 || described.Plugin.MCPServers[0] != "github" {
-		t.Errorf("MCPServers = %v, want [github]", described.Plugin.MCPServers)
+	if len(described.MCPServers) != 1 || described.MCPServers[0] != testNameGitHub {
+		t.Errorf("MCPServers = %v, want [github]", described.MCPServers)
 	}
-	if described.ArtifactInfo.Tag != "v1.0.0" {
-		t.Errorf("Tag = %q, want %q", described.ArtifactInfo.Tag, "v1.0.0")
+	if described.Tag != testTagV100 {
+		t.Errorf("Tag = %q, want %q", described.Tag, testTagV100)
 	}
-	if described.ArtifactInfo.Ref != ref {
-		t.Errorf("Ref = %q, want %q", described.ArtifactInfo.Ref, ref)
+	if described.Ref != ref {
+		t.Errorf("Ref = %q, want %q", described.Ref, ref)
 	}
-	if described.ArtifactInfo.Digest == "" {
+	if described.Digest == "" {
 		t.Error("Digest should not be empty")
 	}
 }
@@ -335,13 +335,13 @@ func TestDescribePlugin_Minimal(t *testing.T) {
 		Commands: []string{"commit", "push", "pr"},
 	}
 	configJSON, _ := json.Marshal(blob)
-	annotations := buildKlausAnnotations(commonMetadata{Name: "commit-commands"})
+	annotations := buildKlausAnnotations(commonMetadata{Name: testNameCommitCommands})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-plugins/commit-commands": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     annotations,
 		},
 	})
@@ -356,46 +356,46 @@ func TestDescribePlugin_Minimal(t *testing.T) {
 		t.Fatalf("DescribePlugin() error = %v", err)
 	}
 
-	if described.Plugin.Name != "commit-commands" {
-		t.Errorf("Name = %q, want %q", described.Plugin.Name, "commit-commands")
+	if described.Name != testNameCommitCommands {
+		t.Errorf("Name = %q, want %q", described.Name, testNameCommitCommands)
 	}
-	if described.Plugin.Version != "v1.0.0" {
-		t.Errorf("Version = %q, want %q", described.Plugin.Version, "v1.0.0")
+	if described.Version != testTagV100 {
+		t.Errorf("Version = %q, want %q", described.Version, testTagV100)
 	}
-	if described.Plugin.Author != nil {
-		t.Errorf("Author = %+v, want nil", described.Plugin.Author)
+	if described.Author != nil {
+		t.Errorf("Author = %+v, want nil", described.Author)
 	}
-	if len(described.Plugin.Commands) != 3 {
-		t.Errorf("Commands = %v, want 3 items", described.Plugin.Commands)
+	if len(described.Commands) != 3 {
+		t.Errorf("Commands = %v, want 3 items", described.Commands)
 	}
 }
 
 func TestDescribePersonality(t *testing.T) {
 	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
-			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.0.0",
+			Repository: testRefToolchainGo,
+			Tag:        testTagV100,
 		},
 		Plugins: []PluginReference{
-			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base", Tag: "latest"},
-			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-sre", Tag: "v1.2.0"},
+			{Repository: testRefPluginGSBase, Tag: testTagLatest},
+			{Repository: testRefPluginGSSRE, Tag: testTagV120},
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
 	annotations := buildKlausAnnotations(commonMetadata{
-		Name:        "sre",
-		Description: "SRE personality",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
-		License:     "Apache-2.0",
-		Keywords:    []string{"giantswarm", "sre", "kubernetes"},
+		Name:        testNameSRE,
+		Description: testDescSREPersonality,
+		Author:      &Author{Name: testAuthorGiantSwarmGmbH},
+		SourceRepo:  testSourcePersonalities,
+		License:     testLicenseApache2,
+		Keywords:    []string{testOrgGiantSwarm, testNameSRE, testKeywordKubernetes},
 	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-personalities/sre": {
+		testRepoPersonalitySRE: {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePersonalityConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 			annotations:     annotations,
 		},
 	})
@@ -410,49 +410,49 @@ func TestDescribePersonality(t *testing.T) {
 		t.Fatalf("DescribePersonality() error = %v", err)
 	}
 
-	if described.Personality.Name != "sre" {
-		t.Errorf("Name = %q, want %q", described.Personality.Name, "sre")
+	if described.Name != testNameSRE {
+		t.Errorf("Name = %q, want %q", described.Name, testNameSRE)
 	}
-	if described.Personality.Version != "v1.0.0" {
-		t.Errorf("Version = %q, want %q", described.Personality.Version, "v1.0.0")
+	if described.Version != testTagV100 {
+		t.Errorf("Version = %q, want %q", described.Version, testTagV100)
 	}
-	if described.Personality.Description != "SRE personality" {
-		t.Errorf("Description = %q", described.Personality.Description)
+	if described.Description != testDescSREPersonality {
+		t.Errorf("Description = %q", described.Description)
 	}
-	if described.Personality.Author == nil || described.Personality.Author.Name != "Giant Swarm GmbH" {
-		t.Errorf("Author = %+v", described.Personality.Author)
+	if described.Author == nil || described.Author.Name != testAuthorGiantSwarmGmbH {
+		t.Errorf("Author = %+v", described.Author)
 	}
-	if described.Personality.SourceRepo != "https://github.com/giantswarm/klaus-personalities" {
-		t.Errorf("SourceRepo = %q", described.Personality.SourceRepo)
+	if described.SourceRepo != testSourcePersonalities {
+		t.Errorf("SourceRepo = %q", described.SourceRepo)
 	}
-	if described.Personality.License != "Apache-2.0" {
-		t.Errorf("License = %q", described.Personality.License)
+	if described.License != testLicenseApache2 {
+		t.Errorf("License = %q", described.License)
 	}
-	if len(described.Personality.Keywords) != 3 {
-		t.Errorf("Keywords = %v, want 3 items", described.Personality.Keywords)
+	if len(described.Keywords) != 3 {
+		t.Errorf("Keywords = %v, want 3 items", described.Keywords)
 	}
-	if described.Personality.Toolchain.Repository != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" {
-		t.Errorf("Toolchain.Repository = %q", described.Personality.Toolchain.Repository)
+	if described.Toolchain.Repository != testRefToolchainGo {
+		t.Errorf("Toolchain.Repository = %q", described.Toolchain.Repository)
 	}
-	if described.Personality.Toolchain.Tag != "v1.0.0" {
-		t.Errorf("Toolchain.Tag = %q, want %q", described.Personality.Toolchain.Tag, "v1.0.0")
+	if described.Toolchain.Tag != testTagV100 {
+		t.Errorf("Toolchain.Tag = %q, want %q", described.Toolchain.Tag, testTagV100)
 	}
-	if len(described.Personality.Plugins) != 2 {
-		t.Fatalf("Plugins length = %d, want 2", len(described.Personality.Plugins))
+	if len(described.Plugins) != 2 {
+		t.Fatalf("Plugins length = %d, want 2", len(described.Plugins))
 	}
-	if described.Personality.Plugins[0].Repository != "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base" {
+	if described.Personality.Plugins[0].Repository != testRefPluginGSBase {
 		t.Errorf("Plugins[0].Repository = %q", described.Personality.Plugins[0].Repository)
 	}
-	if described.Personality.Plugins[1].Tag != "v1.2.0" {
-		t.Errorf("Plugins[1].Tag = %q, want %q", described.Personality.Plugins[1].Tag, "v1.2.0")
+	if described.Personality.Plugins[1].Tag != testTagV120 {
+		t.Errorf("Plugins[1].Tag = %q, want %q", described.Personality.Plugins[1].Tag, testTagV120)
 	}
-	if described.ArtifactInfo.Tag != "v1.0.0" {
-		t.Errorf("Tag = %q, want %q", described.ArtifactInfo.Tag, "v1.0.0")
+	if described.Tag != testTagV100 {
+		t.Errorf("Tag = %q, want %q", described.Tag, testTagV100)
 	}
-	if described.ArtifactInfo.Ref != ref {
-		t.Errorf("Ref = %q, want %q", described.ArtifactInfo.Ref, ref)
+	if described.Ref != ref {
+		t.Errorf("Ref = %q, want %q", described.Ref, ref)
 	}
-	if described.ArtifactInfo.Digest == "" {
+	if described.Digest == "" {
 		t.Error("Digest should not be empty")
 	}
 }
@@ -460,8 +460,8 @@ func TestDescribePersonality(t *testing.T) {
 func TestDescribePersonality_Minimal(t *testing.T) {
 	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
-			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
-			Tag:        "latest",
+			Repository: testRefToolchainGo,
+			Tag:        testTagLatest,
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
@@ -471,7 +471,7 @@ func TestDescribePersonality_Minimal(t *testing.T) {
 		"giantswarm/klaus-personalities/go": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePersonalityConfig,
-			tags:            []string{"v0.3.0"},
+			tags:            []string{testTagV030},
 			annotations:     annotations,
 		},
 	})
@@ -486,36 +486,36 @@ func TestDescribePersonality_Minimal(t *testing.T) {
 		t.Fatalf("DescribePersonality() error = %v", err)
 	}
 
-	if described.Personality.Name != "go" {
-		t.Errorf("Name = %q, want %q", described.Personality.Name, "go")
+	if described.Name != "go" {
+		t.Errorf("Name = %q, want %q", described.Name, "go")
 	}
-	if described.Personality.Version != "v0.3.0" {
-		t.Errorf("Version = %q, want %q", described.Personality.Version, "v0.3.0")
+	if described.Version != testTagV030 {
+		t.Errorf("Version = %q, want %q", described.Version, testTagV030)
 	}
-	if described.Personality.Author != nil {
-		t.Errorf("Author = %+v, want nil", described.Personality.Author)
+	if described.Author != nil {
+		t.Errorf("Author = %+v, want nil", described.Author)
 	}
-	if len(described.Personality.Plugins) != 0 {
-		t.Errorf("Plugins = %v, want empty", described.Personality.Plugins)
+	if len(described.Plugins) != 0 {
+		t.Errorf("Plugins = %v, want empty", described.Plugins)
 	}
 }
 
 func TestDescribeToolchain(t *testing.T) {
 	annotations := map[string]string{
 		AnnotationName:        "go",
-		AnnotationDescription: "Go toolchain for Klaus",
-		AnnotationAuthorName:  "Giant Swarm GmbH",
-		AnnotationHomepage:    "https://docs.giantswarm.io/klaus/",
-		AnnotationRepository:  "https://github.com/giantswarm/klaus-images",
-		AnnotationLicense:     "Apache-2.0",
+		AnnotationDescription: testDescGoToolchainKlaus,
+		AnnotationAuthorName:  testAuthorGiantSwarmGmbH,
+		AnnotationHomepage:    testDocsURL,
+		AnnotationRepository:  testSourceKlausImages,
+		AnnotationLicense:     testLicenseApache2,
 		AnnotationKeywords:    "giantswarm,go,toolchain",
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-toolchains/go": {
+		testRepoToolchainGo: {
 			configJSON:      []byte(`{"architecture":"amd64"}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v1.2.0"},
+			tags:            []string{testTagV120},
 			annotations:     annotations,
 		},
 	})
@@ -530,44 +530,44 @@ func TestDescribeToolchain(t *testing.T) {
 		t.Fatalf("DescribeToolchain() error = %v", err)
 	}
 
-	if described.Toolchain.Name != "go" {
-		t.Errorf("Name = %q, want %q", described.Toolchain.Name, "go")
+	if described.Name != "go" {
+		t.Errorf("Name = %q, want %q", described.Name, "go")
 	}
-	if described.Toolchain.Version != "v1.2.0" {
-		t.Errorf("Version = %q, want %q", described.Toolchain.Version, "v1.2.0")
+	if described.Version != testTagV120 {
+		t.Errorf("Version = %q, want %q", described.Version, testTagV120)
 	}
-	if described.Toolchain.Description != "Go toolchain for Klaus" {
-		t.Errorf("Description = %q", described.Toolchain.Description)
+	if described.Description != testDescGoToolchainKlaus {
+		t.Errorf("Description = %q", described.Description)
 	}
-	if described.Toolchain.Author == nil || described.Toolchain.Author.Name != "Giant Swarm GmbH" {
-		t.Errorf("Author = %+v", described.Toolchain.Author)
+	if described.Author == nil || described.Author.Name != testAuthorGiantSwarmGmbH {
+		t.Errorf("Author = %+v", described.Author)
 	}
-	if described.Toolchain.Homepage != "https://docs.giantswarm.io/klaus/" {
-		t.Errorf("Homepage = %q", described.Toolchain.Homepage)
+	if described.Homepage != testDocsURL {
+		t.Errorf("Homepage = %q", described.Homepage)
 	}
-	if described.Toolchain.SourceRepo != "https://github.com/giantswarm/klaus-images" {
-		t.Errorf("SourceRepo = %q", described.Toolchain.SourceRepo)
+	if described.SourceRepo != testSourceKlausImages {
+		t.Errorf("SourceRepo = %q", described.SourceRepo)
 	}
-	if described.Toolchain.License != "Apache-2.0" {
-		t.Errorf("License = %q", described.Toolchain.License)
+	if described.License != testLicenseApache2 {
+		t.Errorf("License = %q", described.License)
 	}
-	if len(described.Toolchain.Keywords) != 3 || described.Toolchain.Keywords[0] != "giantswarm" {
-		t.Errorf("Keywords = %v, want [giantswarm go toolchain]", described.Toolchain.Keywords)
+	if len(described.Keywords) != 3 || described.Keywords[0] != testOrgGiantSwarm {
+		t.Errorf("Keywords = %v, want [giantswarm go toolchain]", described.Keywords)
 	}
-	if described.ArtifactInfo.Tag != "v1.2.0" {
-		t.Errorf("Tag = %q, want %q", described.ArtifactInfo.Tag, "v1.2.0")
+	if described.Tag != testTagV120 {
+		t.Errorf("Tag = %q, want %q", described.Tag, testTagV120)
 	}
-	if described.ArtifactInfo.Ref != ref {
-		t.Errorf("Ref = %q, want %q", described.ArtifactInfo.Ref, ref)
+	if described.Ref != ref {
+		t.Errorf("Ref = %q, want %q", described.Ref, ref)
 	}
-	if described.ArtifactInfo.Digest == "" {
+	if described.Digest == "" {
 		t.Error("Digest should not be empty")
 	}
 }
 
 func TestDescribeToolchain_Minimal(t *testing.T) {
 	annotations := map[string]string{
-		AnnotationName:        "python",
+		AnnotationName:        testNamePython,
 		AnnotationDescription: "Python toolchain",
 	}
 
@@ -575,7 +575,7 @@ func TestDescribeToolchain_Minimal(t *testing.T) {
 		"giantswarm/klaus-toolchains/python": {
 			configJSON:      []byte(`{}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v0.5.0"},
+			tags:            []string{testTagV050},
 			annotations:     annotations,
 		},
 	})
@@ -590,23 +590,23 @@ func TestDescribeToolchain_Minimal(t *testing.T) {
 		t.Fatalf("DescribeToolchain() error = %v", err)
 	}
 
-	if described.Toolchain.Name != "python" {
-		t.Errorf("Name = %q, want %q", described.Toolchain.Name, "python")
+	if described.Name != testNamePython {
+		t.Errorf("Name = %q, want %q", described.Name, testNamePython)
 	}
-	if described.Toolchain.Version != "v0.5.0" {
-		t.Errorf("Version = %q, want %q", described.Toolchain.Version, "v0.5.0")
+	if described.Version != testTagV050 {
+		t.Errorf("Version = %q, want %q", described.Version, testTagV050)
 	}
-	if described.Toolchain.Description != "Python toolchain" {
-		t.Errorf("Description = %q", described.Toolchain.Description)
+	if described.Description != "Python toolchain" {
+		t.Errorf("Description = %q", described.Description)
 	}
-	if described.Toolchain.Author != nil {
-		t.Errorf("Author = %+v, want nil", described.Toolchain.Author)
+	if described.Author != nil {
+		t.Errorf("Author = %+v, want nil", described.Author)
 	}
-	if described.Toolchain.Keywords != nil {
-		t.Errorf("Keywords = %v, want nil", described.Toolchain.Keywords)
+	if described.Keywords != nil {
+		t.Errorf("Keywords = %v, want nil", described.Keywords)
 	}
-	if described.Toolchain.Homepage != "" {
-		t.Errorf("Homepage = %q, want empty", described.Toolchain.Homepage)
+	if described.Homepage != "" {
+		t.Errorf("Homepage = %q, want empty", described.Homepage)
 	}
 }
 
@@ -634,8 +634,8 @@ func TestDescribePlugin_VersionFromTag(t *testing.T) {
 		t.Fatalf("DescribePlugin() error = %v", err)
 	}
 
-	if described.Plugin.Version != "v2.5.0" {
-		t.Errorf("Version = %q, want %q (from OCI tag)", described.Plugin.Version, "v2.5.0")
+	if described.Version != "v2.5.0" {
+		t.Errorf("Version = %q, want %q (from OCI tag)", described.Version, "v2.5.0")
 	}
 }
 
@@ -658,7 +658,7 @@ func TestDescribePlugin_InvalidConfigJSON(t *testing.T) {
 		"giantswarm/klaus-plugins/bad-config": {
 			configJSON:      []byte(`not valid json`),
 			configMediaType: MediaTypePluginConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 		},
 	})
 	defer ts.Close()
@@ -675,7 +675,7 @@ func TestDescribePlugin_InvalidConfigJSON(t *testing.T) {
 
 func TestDescribePlugin_WithAllComponents(t *testing.T) {
 	blob := pluginConfigBlob{
-		Skills:     []string{"alpha", "beta"},
+		Skills:     []string{testTagAlpha, testTagBeta},
 		Commands:   []string{"cmd-one", "cmd-two", "cmd-three"},
 		Agents:     []string{"agent-a"},
 		HasHooks:   true,
@@ -686,11 +686,11 @@ func TestDescribePlugin_WithAllComponents(t *testing.T) {
 	annotations := buildKlausAnnotations(commonMetadata{
 		Name:        "full-featured",
 		Description: "A plugin with every component type",
-		Author:      &Author{Name: "Test Author", Email: "test@example.com", URL: "https://example.com"},
+		Author:      &Author{Name: "Test Author", Email: testEmail, URL: testURLExample},
 		Homepage:    "https://docs.example.com",
 		SourceRepo:  "https://github.com/example/repo",
 		License:     "MIT",
-		Keywords:    []string{"test", "full", "featured"},
+		Keywords:    []string{testNameTest, "full", "featured"},
 	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
@@ -716,10 +716,10 @@ func TestDescribePlugin_WithAllComponents(t *testing.T) {
 	if p.Name != "full-featured" {
 		t.Errorf("Name = %q", p.Name)
 	}
-	if p.Author.Email != "test@example.com" {
+	if p.Author.Email != testEmail {
 		t.Errorf("Author.Email = %q", p.Author.Email)
 	}
-	if p.Author.URL != "https://example.com" {
+	if p.Author.URL != testURLExample {
 		t.Errorf("Author.URL = %q", p.Author.URL)
 	}
 	if p.Homepage != "https://docs.example.com" {
@@ -742,8 +742,8 @@ func TestDescribePlugin_WithAllComponents(t *testing.T) {
 func TestDescribePersonality_VersionFromTag(t *testing.T) {
 	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
-			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
-			Tag:        "latest",
+			Repository: testRefToolchainGo,
+			Tag:        testTagLatest,
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
@@ -768,8 +768,8 @@ func TestDescribePersonality_VersionFromTag(t *testing.T) {
 		t.Fatalf("DescribePersonality() error = %v", err)
 	}
 
-	if described.Personality.Version != "v3.1.0" {
-		t.Errorf("Version = %q, want %q (from OCI tag)", described.Personality.Version, "v3.1.0")
+	if described.Version != "v3.1.0" {
+		t.Errorf("Version = %q, want %q (from OCI tag)", described.Version, "v3.1.0")
 	}
 }
 
@@ -792,7 +792,7 @@ func TestDescribePersonality_InvalidConfigJSON(t *testing.T) {
 		"giantswarm/klaus-personalities/bad": {
 			configJSON:      []byte(`{invalid json}`),
 			configMediaType: MediaTypePersonalityConfig,
-			tags:            []string{"v1.0.0"},
+			tags:            []string{testTagV100},
 		},
 	})
 	defer ts.Close()
@@ -810,30 +810,30 @@ func TestDescribePersonality_InvalidConfigJSON(t *testing.T) {
 func TestDescribePersonality_WithPinnedDeps(t *testing.T) {
 	blob := personalityConfigBlob{
 		Toolchain: ToolchainReference{
-			Repository: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go",
-			Tag:        "v1.2.0",
+			Repository: testRefToolchainGo,
+			Tag:        testTagV120,
 		},
 		Plugins: []PluginReference{
-			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base", Tag: "v0.1.0"},
-			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-godev", Tag: "v0.1.0"},
-			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-product", Tag: "v0.1.0"},
+			{Repository: testRefPluginGSBase, Tag: testTagV010},
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-godev", Tag: testTagV010},
+			{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-product", Tag: testTagV010},
 		},
 	}
 	configJSON, _ := json.Marshal(blob)
 	annotations := buildKlausAnnotations(commonMetadata{
 		Name:        "program-manager",
 		Description: "Program manager personality",
-		Author:      &Author{Name: "Giant Swarm GmbH"},
-		SourceRepo:  "https://github.com/giantswarm/klaus-personalities",
-		License:     "Apache-2.0",
-		Keywords:    []string{"giantswarm", "management"},
+		Author:      &Author{Name: testAuthorGiantSwarmGmbH},
+		SourceRepo:  testSourcePersonalities,
+		License:     testLicenseApache2,
+		Keywords:    []string{testOrgGiantSwarm, "management"},
 	})
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
 		"giantswarm/klaus-personalities/program-manager": {
 			configJSON:      configJSON,
 			configMediaType: MediaTypePersonalityConfig,
-			tags:            []string{"v2.0.0"},
+			tags:            []string{testTagV200},
 			annotations:     annotations,
 		},
 	})
@@ -848,19 +848,19 @@ func TestDescribePersonality_WithPinnedDeps(t *testing.T) {
 		t.Fatalf("DescribePersonality() error = %v", err)
 	}
 
-	if described.Personality.Version != "v2.0.0" {
-		t.Errorf("Version = %q, want %q", described.Personality.Version, "v2.0.0")
+	if described.Version != testTagV200 {
+		t.Errorf("Version = %q, want %q", described.Version, testTagV200)
 	}
-	if len(described.Personality.Plugins) != 3 {
-		t.Fatalf("Plugins length = %d, want 3", len(described.Personality.Plugins))
+	if len(described.Plugins) != 3 {
+		t.Fatalf("Plugins length = %d, want 3", len(described.Plugins))
 	}
-	for i, p := range described.Personality.Plugins {
-		if p.Tag != "v0.1.0" {
-			t.Errorf("Plugins[%d].Tag = %q, want %q", i, p.Tag, "v0.1.0")
+	for i, p := range described.Plugins {
+		if p.Tag != testTagV010 {
+			t.Errorf("Plugins[%d].Tag = %q, want %q", i, p.Tag, testTagV010)
 		}
 	}
-	if described.Personality.Toolchain.Tag != "v1.2.0" {
-		t.Errorf("Toolchain.Tag = %q, want %q", described.Personality.Toolchain.Tag, "v1.2.0")
+	if described.Toolchain.Tag != testTagV120 {
+		t.Errorf("Toolchain.Tag = %q, want %q", described.Toolchain.Tag, testTagV120)
 	}
 }
 
@@ -883,7 +883,7 @@ func TestDescribeToolchain_NoAnnotations(t *testing.T) {
 		"giantswarm/klaus-toolchains/bare": {
 			configJSON:      []byte(`{}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v0.1.0"},
+			tags:            []string{testTagV010},
 		},
 	})
 	defer ts.Close()
@@ -897,17 +897,17 @@ func TestDescribeToolchain_NoAnnotations(t *testing.T) {
 		t.Fatalf("DescribeToolchain() error = %v", err)
 	}
 
-	if described.Toolchain.Name != "" {
-		t.Errorf("Name = %q, want empty (no annotations)", described.Toolchain.Name)
+	if described.Name != "" {
+		t.Errorf("Name = %q, want empty (no annotations)", described.Name)
 	}
-	if described.Toolchain.Description != "" {
-		t.Errorf("Description = %q, want empty", described.Toolchain.Description)
+	if described.Description != "" {
+		t.Errorf("Description = %q, want empty", described.Description)
 	}
-	if described.Toolchain.Author != nil {
-		t.Errorf("Author = %+v, want nil", described.Toolchain.Author)
+	if described.Author != nil {
+		t.Errorf("Author = %+v, want nil", described.Author)
 	}
-	if described.Toolchain.Version != "v0.1.0" {
-		t.Errorf("Version = %q, want %q (from OCI tag)", described.Toolchain.Version, "v0.1.0")
+	if described.Version != testTagV010 {
+		t.Errorf("Version = %q, want %q (from OCI tag)", described.Version, testTagV010)
 	}
 }
 
@@ -918,10 +918,10 @@ func TestDescribeToolchain_VersionFromTag(t *testing.T) {
 	}
 
 	ts := newArtifactRegistry(map[string]testArtifactEntry{
-		"giantswarm/klaus-toolchains/go": {
+		testRepoToolchainGo: {
 			configJSON:      []byte(`{}`),
 			configMediaType: ocispec.MediaTypeImageConfig,
-			tags:            []string{"v1.2.0"},
+			tags:            []string{testTagV120},
 			annotations:     annotations,
 		},
 	})
@@ -936,14 +936,14 @@ func TestDescribeToolchain_VersionFromTag(t *testing.T) {
 		t.Fatalf("DescribeToolchain() error = %v", err)
 	}
 
-	if described.Toolchain.Version != "v1.2.0" {
-		t.Errorf("Version = %q, want %q (from OCI tag, not annotation)", described.Toolchain.Version, "v1.2.0")
+	if described.Version != testTagV120 {
+		t.Errorf("Version = %q, want %q (from OCI tag, not annotation)", described.Version, testTagV120)
 	}
 }
 
 func TestToolchainFromAnnotations_SingleKeyword(t *testing.T) {
 	annotations := map[string]string{
-		AnnotationName:     "test",
+		AnnotationName:     testNameTest,
 		AnnotationKeywords: "single",
 	}
 

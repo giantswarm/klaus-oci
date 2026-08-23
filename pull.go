@@ -52,7 +52,7 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 	if err != nil {
 		return nil, fmt.Errorf("fetching manifest for %s: %w", ref, err)
 	}
-	defer manifestRC.Close()
+	defer func() { _ = manifestRC.Close() }()
 
 	var manifest ocispec.Manifest
 	if err := json.NewDecoder(manifestRC).Decode(&manifest); err != nil {
@@ -63,7 +63,7 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 	if err != nil {
 		return nil, fmt.Errorf("fetching config for %s: %w", ref, err)
 	}
-	defer configRC.Close()
+	defer func() { _ = configRC.Close() }()
 	configJSON, err := io.ReadAll(configRC)
 	if err != nil {
 		return nil, fmt.Errorf("reading config for %s: %w", ref, err)
@@ -84,7 +84,7 @@ func (c *Client) pull(ctx context.Context, ref string, destDir string, kind arti
 	if err != nil {
 		return nil, fmt.Errorf("fetching content layer for %s: %w", ref, err)
 	}
-	defer layerRC.Close()
+	defer func() { _ = layerRC.Close() }()
 
 	if err := cleanAndCreate(destDir); err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func parsePersonalityFromDir(dir, ref string, result *pullResult) (*PulledPerson
 		Cached:       result.Cached,
 	}
 
-	soulData, err := os.ReadFile(filepath.Join(dir, "SOUL.md"))
+	soulData, err := os.ReadFile(filepath.Clean(filepath.Join(dir, "SOUL.md")))
 	if err == nil {
 		p.Soul = string(soulData)
 	} else if !errors.Is(err, fs.ErrNotExist) {

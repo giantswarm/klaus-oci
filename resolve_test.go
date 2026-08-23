@@ -22,10 +22,10 @@ func (m *mockTagLister) List(_ context.Context, repository string) ([]string, er
 func TestResolveArtifactRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
-			"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae":     {"v0.0.1", "v0.0.3", "v0.0.2"},
-			"gsoci.azurecr.io/giantswarm/klaus-personalities/sre": {"v0.1.0", "v0.2.0"},
-			"custom.registry.io/org/my-plugin":                    {"v2.0.0"},
-			"custom.registry.io/org/no-semver":                    {"latest", "main", "dev"},
+			"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae":     {testTagV001, testTagV003, testTagV002},
+			"gsoci.azurecr.io/giantswarm/klaus-personalities/sre": {testTagV010, testTagV020},
+			"custom.registry.io/org/my-plugin":                    {testTagV200},
+			"custom.registry.io/org/no-semver":                    {testTagLatest, testTagMain, testTagDev},
 		},
 	}
 	tests := []struct {
@@ -38,79 +38,79 @@ func TestResolveArtifactRef(t *testing.T) {
 		{
 			name:         "empty ref returns error",
 			ref:          "",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
+			registryBase: testRegistryPlugins,
 			wantErr:      true,
 		},
 		{
 			name:         "whitespace-only ref returns error",
 			ref:          "   ",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
+			registryBase: testRegistryPlugins,
 			wantErr:      true,
 		},
 		{
-			name:         "short name with explicit tag",
+			name:         testCaseShortNameExplicitTag,
 			ref:          "gs-ae:v0.0.2",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.2",
+			registryBase: testRegistryPlugins,
+			want:         testRefPluginGSAEV002,
 		},
 		{
 			name:         "short name without tag resolves latest",
-			ref:          "gs-ae",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.3",
+			ref:          testNameGSAE,
+			registryBase: testRegistryPlugins,
+			want:         testRefPluginGSAEV003,
 		},
 		{
 			name:         "short name with latest tag resolves actual",
 			ref:          "gs-ae:latest",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.3",
+			registryBase: testRegistryPlugins,
+			want:         testRefPluginGSAEV003,
 		},
 		{
 			name:         "full ref with tag returned as-is",
-			ref:          "custom.registry.io/org/my-plugin:v2.0.0",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "custom.registry.io/org/my-plugin:v2.0.0",
+			ref:          testRefCustomPluginV200,
+			registryBase: testRegistryPlugins,
+			want:         testRefCustomPluginV200,
 		},
 		{
 			name:         "full ref with digest returned as-is",
 			ref:          "custom.registry.io/org/my-plugin@sha256:abc123",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
+			registryBase: testRegistryPlugins,
 			want:         "custom.registry.io/org/my-plugin@sha256:abc123",
 		},
 		{
 			name:         "full ref without tag resolves latest",
 			ref:          "custom.registry.io/org/my-plugin",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "custom.registry.io/org/my-plugin:v2.0.0",
+			registryBase: testRegistryPlugins,
+			want:         testRefCustomPluginV200,
 		},
 		{
 			name:         "full ref with latest tag resolves actual",
 			ref:          "custom.registry.io/org/my-plugin:latest",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "custom.registry.io/org/my-plugin:v2.0.0",
+			registryBase: testRegistryPlugins,
+			want:         testRefCustomPluginV200,
 		},
 		{
 			name:         "whitespace trimmed",
 			ref:          "  gs-ae:v0.0.2  ",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
-			want:         "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.2",
+			registryBase: testRegistryPlugins,
+			want:         testRefPluginGSAEV002,
 		},
 		{
 			name:         "unknown short name returns error",
-			ref:          "nonexistent",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
+			ref:          testNameNonexistent,
+			registryBase: testRegistryPlugins,
 			wantErr:      true,
 		},
 		{
 			name:         "full ref with no semver tags returns error",
 			ref:          "custom.registry.io/org/no-semver",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
+			registryBase: testRegistryPlugins,
 			wantErr:      true,
 		},
 		{
 			name:         "full ref with latest tag and no semver tags returns error",
 			ref:          "custom.registry.io/org/no-semver:latest",
-			registryBase: "gsoci.azurecr.io/giantswarm/klaus-plugins",
+			registryBase: testRegistryPlugins,
 			wantErr:      true,
 		},
 	}
@@ -137,8 +137,8 @@ func TestResolveArtifactRef(t *testing.T) {
 func TestResolveToolchainRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
-			"gsoci.azurecr.io/giantswarm/klaus-toolchains/go":     {"v1.0.0", "v1.1.0"},
-			"gsoci.azurecr.io/giantswarm/klaus-toolchains/python": {"v0.5.0"},
+			testRefToolchainGo:     {testTagV100, testTagV110},
+			testRefToolchainPython: {testTagV050},
 		},
 	}
 
@@ -154,7 +154,7 @@ func TestResolveToolchainRef(t *testing.T) {
 			want: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.1.0",
 		},
 		{
-			name: "short name with explicit tag",
+			name: testCaseShortNameExplicitTag,
 			ref:  "go:v1.0.0",
 			want: "gsoci.azurecr.io/giantswarm/klaus-toolchains/go:v1.0.0",
 		},
@@ -187,7 +187,7 @@ func TestResolveToolchainRef(t *testing.T) {
 func TestResolvePluginRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
-			"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae": {"v0.0.1", "v0.0.3", "v0.0.2"},
+			"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae": {testTagV001, testTagV003, testTagV002},
 		},
 	}
 
@@ -199,17 +199,17 @@ func TestResolvePluginRef(t *testing.T) {
 	}{
 		{
 			name: "short name resolves latest",
-			ref:  "gs-ae",
-			want: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.3",
+			ref:  testNameGSAE,
+			want: testRefPluginGSAEV003,
 		},
 		{
-			name: "short name with explicit tag",
+			name: testCaseShortNameExplicitTag,
 			ref:  "gs-ae:v0.0.2",
-			want: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-ae:v0.0.2",
+			want: testRefPluginGSAEV002,
 		},
 		{
 			name:    "unknown plugin",
-			ref:     "nonexistent",
+			ref:     testNameNonexistent,
 			wantErr: true,
 		},
 	}
@@ -236,7 +236,7 @@ func TestResolvePluginRef(t *testing.T) {
 func TestResolvePersonalityRef(t *testing.T) {
 	lister := &mockTagLister{
 		tags: map[string][]string{
-			"gsoci.azurecr.io/giantswarm/klaus-personalities/sre": {"v0.1.0", "v0.2.0"},
+			"gsoci.azurecr.io/giantswarm/klaus-personalities/sre": {testTagV010, testTagV020},
 		},
 	}
 
@@ -248,17 +248,17 @@ func TestResolvePersonalityRef(t *testing.T) {
 	}{
 		{
 			name: "short name resolves latest",
-			ref:  "sre",
+			ref:  testNameSRE,
 			want: "gsoci.azurecr.io/giantswarm/klaus-personalities/sre:v0.2.0",
 		},
 		{
-			name: "short name with explicit tag",
+			name: testCaseShortNameExplicitTag,
 			ref:  "sre:v0.1.0",
 			want: "gsoci.azurecr.io/giantswarm/klaus-personalities/sre:v0.1.0",
 		},
 		{
 			name:    "unknown personality",
-			ref:     "nonexistent",
+			ref:     testNameNonexistent,
 			wantErr: true,
 		},
 	}

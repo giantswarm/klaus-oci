@@ -22,7 +22,7 @@ func newTestRegistry(repos map[string][]string) *httptest.Server {
 
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/v2/" || r.URL.Path == "/v2":
+		case r.URL.Path == testPathV2Slash || r.URL.Path == testPathV2:
 			w.WriteHeader(http.StatusOK)
 
 		case r.URL.Path == "/v2/_catalog":
@@ -37,10 +37,10 @@ func newTestRegistry(repos map[string][]string) *httptest.Server {
 				result = []string{}
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string][]string{"repositories": result})
+			_ = json.NewEncoder(w).Encode(map[string][]string{"repositories": result})
 
 		case strings.HasSuffix(r.URL.Path, "/tags/list"):
-			repoName := strings.TrimPrefix(r.URL.Path, "/v2/")
+			repoName := strings.TrimPrefix(r.URL.Path, testPathV2Slash)
 			repoName = strings.TrimSuffix(repoName, "/tags/list")
 			tags, ok := repos[repoName]
 			if !ok {
@@ -48,7 +48,7 @@ func newTestRegistry(repos map[string][]string) *httptest.Server {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"name": repoName, "tags": tags})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{testKeyName: repoName, testKeyTags: tags})
 
 		default:
 			http.NotFound(w, r)
@@ -62,11 +62,11 @@ func testRegistryHost(ts *httptest.Server) string {
 
 func TestListRepositories(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/aaa":                       {},
-		"giantswarm/klaus-plugins-extra/foo":   {"v1.0.0"},
-		"giantswarm/klaus-plugins/gs-base":     {"v0.1.0"},
-		"giantswarm/klaus-plugins/gs-platform": {"v0.2.0"},
-		"giantswarm/zzz":                       {},
+		"giantswarm/aaa":                     {},
+		"giantswarm/klaus-plugins-extra/foo": {testTagV100},
+		testRepoPluginGSBase:                 {testTagV010},
+		testRepoPluginGSPlatform:             {testTagV020},
+		"giantswarm/zzz":                     {},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -116,9 +116,9 @@ func TestListRepositories(t *testing.T) {
 
 func TestListArtifacts(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-plugins/gs-base":     {"v0.1.0", "v0.2.0"},
-		"giantswarm/klaus-plugins/gs-platform": {"v1.0.0", "v1.1.0"},
-		"giantswarm/klaus-plugins/no-semver":   {"latest", "dev"},
+		testRepoPluginGSBase:                 {testTagV010, testTagV020},
+		testRepoPluginGSPlatform:             {testTagV100, testTagV110},
+		"giantswarm/klaus-plugins/no-semver": {testTagLatest, testTagDev},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -134,13 +134,13 @@ func TestListArtifacts(t *testing.T) {
 		if len(artifacts) != 2 {
 			t.Fatalf("expected 2 artifacts, got %d: %v", len(artifacts), artifacts)
 		}
-		if !strings.HasSuffix(artifacts[0].Repository, "gs-base") {
+		if !strings.HasSuffix(artifacts[0].Repository, testNameGSBase) {
 			t.Errorf("artifacts[0].Repository = %q, want suffix gs-base", artifacts[0].Repository)
 		}
 		if !strings.HasSuffix(artifacts[0].Reference, ":v0.2.0") {
 			t.Errorf("artifacts[0].Reference = %q, want suffix :v0.2.0", artifacts[0].Reference)
 		}
-		if !strings.HasSuffix(artifacts[1].Repository, "gs-platform") {
+		if !strings.HasSuffix(artifacts[1].Repository, testNameGSPlatform) {
 			t.Errorf("artifacts[1].Repository = %q, want suffix gs-platform", artifacts[1].Repository)
 		}
 		if !strings.HasSuffix(artifacts[1].Reference, ":v1.1.0") {
@@ -151,7 +151,7 @@ func TestListArtifacts(t *testing.T) {
 	t.Run("WithFilter keeps only matching repos", func(t *testing.T) {
 		artifacts, err := client.listArtifacts(t.Context(), base,
 			WithFilter(func(repo string) bool {
-				return strings.HasSuffix(repo, "gs-base")
+				return strings.HasSuffix(repo, testNameGSBase)
 			}),
 		)
 		if err != nil {
@@ -160,7 +160,7 @@ func TestListArtifacts(t *testing.T) {
 		if len(artifacts) != 1 {
 			t.Fatalf("expected 1 artifact, got %d", len(artifacts))
 		}
-		if !strings.HasSuffix(artifacts[0].Repository, "gs-base") {
+		if !strings.HasSuffix(artifacts[0].Repository, testNameGSBase) {
 			t.Errorf("artifact = %q, want suffix gs-base", artifacts[0].Repository)
 		}
 	})
@@ -180,9 +180,9 @@ func TestListArtifacts(t *testing.T) {
 
 func TestListPersonalities(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-personalities/sre":       {"v0.1.0", "v0.2.0"},
-		"giantswarm/klaus-personalities/engineer":  {"v1.0.0"},
-		"giantswarm/klaus-personalities/no-semver": {"latest"},
+		testRepoPersonalitySRE:                     {testTagV010, testTagV020},
+		"giantswarm/klaus-personalities/engineer":  {testTagV100},
+		"giantswarm/klaus-personalities/no-semver": {testTagLatest},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -202,14 +202,14 @@ func TestListPersonalities(t *testing.T) {
 		if personalities[0].Name != "engineer" {
 			t.Errorf("personalities[0].Name = %q, want %q", personalities[0].Name, "engineer")
 		}
-		if personalities[0].Version != "v1.0.0" {
-			t.Errorf("personalities[0].Version = %q, want %q", personalities[0].Version, "v1.0.0")
+		if personalities[0].Version != testTagV100 {
+			t.Errorf("personalities[0].Version = %q, want %q", personalities[0].Version, testTagV100)
 		}
-		if personalities[1].Name != "sre" {
-			t.Errorf("personalities[1].Name = %q, want %q", personalities[1].Name, "sre")
+		if personalities[1].Name != testNameSRE {
+			t.Errorf("personalities[1].Name = %q, want %q", personalities[1].Name, testNameSRE)
 		}
-		if personalities[1].Version != "v0.2.0" {
-			t.Errorf("personalities[1].Version = %q, want %q", personalities[1].Version, "v0.2.0")
+		if personalities[1].Version != testTagV020 {
+			t.Errorf("personalities[1].Version = %q, want %q", personalities[1].Version, testTagV020)
 		}
 	})
 
@@ -217,7 +217,7 @@ func TestListPersonalities(t *testing.T) {
 		personalities, err := client.ListPersonalities(t.Context(),
 			WithRegistry(host+"/giantswarm/klaus-personalities"),
 			WithFilter(func(repo string) bool {
-				return strings.HasSuffix(repo, "sre")
+				return strings.HasSuffix(repo, testNameSRE)
 			}),
 		)
 		if err != nil {
@@ -226,16 +226,16 @@ func TestListPersonalities(t *testing.T) {
 		if len(personalities) != 1 {
 			t.Fatalf("expected 1 personality, got %d", len(personalities))
 		}
-		if personalities[0].Name != "sre" {
-			t.Errorf("Name = %q, want %q", personalities[0].Name, "sre")
+		if personalities[0].Name != testNameSRE {
+			t.Errorf("Name = %q, want %q", personalities[0].Name, testNameSRE)
 		}
 	})
 }
 
 func TestListPlugins(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-plugins/gs-base":     {"v0.1.0", "v0.2.0"},
-		"giantswarm/klaus-plugins/gs-platform": {"v1.0.0"},
+		testRepoPluginGSBase:     {testTagV010, testTagV020},
+		testRepoPluginGSPlatform: {testTagV100},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -250,21 +250,21 @@ func TestListPlugins(t *testing.T) {
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
-	if plugins[0].Name != "gs-base" {
-		t.Errorf("plugins[0].Name = %q, want %q", plugins[0].Name, "gs-base")
+	if plugins[0].Name != testNameGSBase {
+		t.Errorf("plugins[0].Name = %q, want %q", plugins[0].Name, testNameGSBase)
 	}
-	if plugins[0].Version != "v0.2.0" {
-		t.Errorf("plugins[0].Version = %q, want %q", plugins[0].Version, "v0.2.0")
+	if plugins[0].Version != testTagV020 {
+		t.Errorf("plugins[0].Version = %q, want %q", plugins[0].Version, testTagV020)
 	}
-	if plugins[1].Name != "gs-platform" {
-		t.Errorf("plugins[1].Name = %q, want %q", plugins[1].Name, "gs-platform")
+	if plugins[1].Name != testNameGSPlatform {
+		t.Errorf("plugins[1].Name = %q, want %q", plugins[1].Name, testNameGSPlatform)
 	}
 }
 
 func TestListToolchains(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-toolchains/go":     {"v1.0.0", "v1.1.0"},
-		"giantswarm/klaus-toolchains/python": {"v0.5.0"},
+		testRepoToolchainGo:                  {testTagV100, testTagV110},
+		"giantswarm/klaus-toolchains/python": {testTagV050},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -282,17 +282,17 @@ func TestListToolchains(t *testing.T) {
 	if toolchains[0].Name != "go" {
 		t.Errorf("toolchains[0].Name = %q, want %q", toolchains[0].Name, "go")
 	}
-	if toolchains[0].Version != "v1.1.0" {
-		t.Errorf("toolchains[0].Version = %q, want %q", toolchains[0].Version, "v1.1.0")
+	if toolchains[0].Version != testTagV110 {
+		t.Errorf("toolchains[0].Version = %q, want %q", toolchains[0].Version, testTagV110)
 	}
-	if toolchains[1].Name != "python" {
-		t.Errorf("toolchains[1].Name = %q, want %q", toolchains[1].Name, "python")
+	if toolchains[1].Name != testNamePython {
+		t.Errorf("toolchains[1].Name = %q, want %q", toolchains[1].Name, testNamePython)
 	}
 }
 
 func TestWithRegistry(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"custom/team/plugins/alpha": {"v2.0.0"},
+		"custom/team/plugins/alpha": {testTagV200},
 		"custom/team/plugins/beta":  {"v3.0.0"},
 	})
 	defer ts.Close()
@@ -308,17 +308,17 @@ func TestWithRegistry(t *testing.T) {
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins from custom registry, got %d", len(plugins))
 	}
-	if plugins[0].Name != "alpha" {
-		t.Errorf("plugins[0].Name = %q, want %q", plugins[0].Name, "alpha")
+	if plugins[0].Name != testTagAlpha {
+		t.Errorf("plugins[0].Name = %q, want %q", plugins[0].Name, testTagAlpha)
 	}
-	if plugins[1].Name != "beta" {
-		t.Errorf("plugins[1].Name = %q, want %q", plugins[1].Name, "beta")
+	if plugins[1].Name != testTagBeta {
+		t.Errorf("plugins[1].Name = %q, want %q", plugins[1].Name, testTagBeta)
 	}
 }
 
 func TestListPluginVersions(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-plugins/gs-base": {"v0.1.0", "v0.3.0", "v0.2.0", "latest", "dev"},
+		testRepoPluginGSBase: {testTagV010, testTagV030, testTagV020, testTagLatest, testTagDev},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -326,7 +326,7 @@ func TestListPluginVersions(t *testing.T) {
 	client := NewClient(WithPlainHTTP(true))
 
 	t.Run("short name with default registry fails for test server", func(t *testing.T) {
-		_, err := client.ListPluginVersions(t.Context(), "gs-base")
+		_, err := client.ListPluginVersions(t.Context(), testNameGSBase)
 		if err == nil {
 			t.Fatal("expected error when short name resolves to unreachable default registry")
 		}
@@ -339,7 +339,7 @@ func TestListPluginVersions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListPluginVersions() error = %v", err)
 		}
-		want := []string{"v0.3.0", "v0.2.0", "v0.1.0"}
+		want := []string{testTagV030, testTagV020, testTagV010}
 		if !slices.Equal(versions, want) {
 			t.Errorf("ListPluginVersions() = %v, want %v", versions, want)
 		}
@@ -362,7 +362,7 @@ func TestListPluginVersions(t *testing.T) {
 
 func TestListPersonalityVersions(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-personalities/sre": {"v1.0.0", "v0.2.0", "v0.1.0", "latest"},
+		testRepoPersonalitySRE: {testTagV100, testTagV020, testTagV010, testTagLatest},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -375,7 +375,7 @@ func TestListPersonalityVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPersonalityVersions() error = %v", err)
 	}
-	want := []string{"v1.0.0", "v0.2.0", "v0.1.0"}
+	want := []string{testTagV100, testTagV020, testTagV010}
 	if !slices.Equal(versions, want) {
 		t.Errorf("ListPersonalityVersions() = %v, want %v", versions, want)
 	}
@@ -383,7 +383,7 @@ func TestListPersonalityVersions(t *testing.T) {
 
 func TestListToolchainVersions(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-toolchains/go": {"v1.1.0", "v1.0.0", "v0.9.0", "nightly"},
+		testRepoToolchainGo: {testTagV110, testTagV100, testTagV090, "nightly"},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -396,7 +396,7 @@ func TestListToolchainVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListToolchainVersions() error = %v", err)
 	}
-	want := []string{"v1.1.0", "v1.0.0", "v0.9.0"}
+	want := []string{testTagV110, testTagV100, testTagV090}
 	if !slices.Equal(versions, want) {
 		t.Errorf("ListToolchainVersions() = %v, want %v", versions, want)
 	}
@@ -404,7 +404,7 @@ func TestListToolchainVersions(t *testing.T) {
 
 func TestListVersionsNoSemverTags(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-plugins/dev-only": {"latest", "dev", "main"},
+		"giantswarm/klaus-plugins/dev-only": {testTagLatest, testTagDev, testTagMain},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -429,14 +429,14 @@ func TestExtractNameVersion(t *testing.T) {
 		wantVersion string
 	}{
 		{
-			artifact:    listedArtifact{Repository: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base", Reference: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base:v0.2.0"},
-			wantName:    "gs-base",
-			wantVersion: "v0.2.0",
+			artifact:    listedArtifact{Repository: testRefPluginGSBase, Reference: "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base:v0.2.0"},
+			wantName:    testNameGSBase,
+			wantVersion: testTagV020,
 		},
 		{
-			artifact:    listedArtifact{Repository: "registry.io/org/repo", Reference: "registry.io/org/repo:v1.0.0"},
+			artifact:    listedArtifact{Repository: testRefOrgRepo, Reference: "registry.io/org/repo:v1.0.0"},
 			wantName:    "repo",
-			wantVersion: "v1.0.0",
+			wantVersion: testTagV100,
 		},
 	}
 
@@ -461,27 +461,27 @@ func TestSortedSemverTags(t *testing.T) {
 	}{
 		{
 			name: "multiple versions sorted descending",
-			tags: []string{"v0.1.0", "v1.0.0", "v0.5.0"},
-			want: []string{"v1.0.0", "v0.5.0", "v0.1.0"},
+			tags: []string{testTagV010, testTagV100, testTagV050},
+			want: []string{testTagV100, testTagV050, testTagV010},
 		},
 		{
 			name: "non-semver tags filtered out",
-			tags: []string{"v1.0.0", "latest", "main", "v0.5.0", "dev"},
-			want: []string{"v1.0.0", "v0.5.0"},
+			tags: []string{testTagV100, testTagLatest, testTagMain, testTagV050, testTagDev},
+			want: []string{testTagV100, testTagV050},
 		},
 		{
 			name: "pre-release before release",
-			tags: []string{"v1.0.0", "v1.1.0-rc.1", "v0.9.0"},
-			want: []string{"v1.1.0-rc.1", "v1.0.0", "v0.9.0"},
+			tags: []string{testTagV100, "v1.1.0-rc.1", testTagV090},
+			want: []string{"v1.1.0-rc.1", testTagV100, testTagV090},
 		},
 		{
 			name: "single tag",
-			tags: []string{"v1.0.0"},
-			want: []string{"v1.0.0"},
+			tags: []string{testTagV100},
+			want: []string{testTagV100},
 		},
 		{
 			name: "no semver tags",
-			tags: []string{"latest", "main"},
+			tags: []string{testTagLatest, testTagMain},
 			want: []string{},
 		},
 		{
@@ -513,7 +513,7 @@ func TestSortedSemverTags(t *testing.T) {
 
 func TestListVersionsSingleTag(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-plugins/single": {"v1.0.0"},
+		"giantswarm/klaus-plugins/single": {testTagV100},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -526,14 +526,14 @@ func TestListVersionsSingleTag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPluginVersions() error = %v", err)
 	}
-	if len(versions) != 1 || versions[0] != "v1.0.0" {
+	if len(versions) != 1 || versions[0] != testTagV100 {
 		t.Errorf("ListPluginVersions() = %v, want [v1.0.0]", versions)
 	}
 }
 
 func TestListVersionsPreRelease(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-plugins/prerel": {"v1.0.0-alpha.1", "v1.0.0-beta.1", "v1.0.0", "v0.9.0"},
+		"giantswarm/klaus-plugins/prerel": {"v1.0.0-alpha.1", "v1.0.0-beta.1", testTagV100, testTagV090},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -547,7 +547,7 @@ func TestListVersionsPreRelease(t *testing.T) {
 		t.Fatalf("ListPluginVersions() error = %v", err)
 	}
 
-	want := []string{"v1.0.0", "v1.0.0-beta.1", "v1.0.0-alpha.1", "v0.9.0"}
+	want := []string{testTagV100, "v1.0.0-beta.1", "v1.0.0-alpha.1", testTagV090}
 	if !slices.Equal(versions, want) {
 		t.Errorf("ListPluginVersions() = %v, want %v", versions, want)
 	}
@@ -572,7 +572,7 @@ func TestListPersonalities_Empty(t *testing.T) {
 
 func TestListEntry_Fields(t *testing.T) {
 	ts := newTestRegistry(map[string][]string{
-		"giantswarm/klaus-plugins/gs-base": {"v1.0.0"},
+		testRepoPluginGSBase: {testTagV100},
 	})
 	defer ts.Close()
 	host := testRegistryHost(ts)
@@ -589,13 +589,13 @@ func TestListEntry_Fields(t *testing.T) {
 	}
 
 	entry := entries[0]
-	if entry.Name != "gs-base" {
-		t.Errorf("Name = %q, want %q", entry.Name, "gs-base")
+	if entry.Name != testNameGSBase {
+		t.Errorf("Name = %q, want %q", entry.Name, testNameGSBase)
 	}
-	if entry.Version != "v1.0.0" {
-		t.Errorf("Version = %q, want %q", entry.Version, "v1.0.0")
+	if entry.Version != testTagV100 {
+		t.Errorf("Version = %q, want %q", entry.Version, testTagV100)
 	}
-	if !strings.HasSuffix(entry.Repository, "giantswarm/klaus-plugins/gs-base") {
+	if !strings.HasSuffix(entry.Repository, testRepoPluginGSBase) {
 		t.Errorf("Repository = %q, want suffix giantswarm/klaus-plugins/gs-base", entry.Repository)
 	}
 	if !strings.HasSuffix(entry.Reference, ":v1.0.0") {

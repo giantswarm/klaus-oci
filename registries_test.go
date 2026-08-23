@@ -7,10 +7,10 @@ func TestToolchainRegistryRef(t *testing.T) {
 		name string
 		want string
 	}{
-		{"go", "gsoci.azurecr.io/giantswarm/klaus-toolchains/go"},
-		{"python", "gsoci.azurecr.io/giantswarm/klaus-toolchains/python"},
+		{"go", testRefToolchainGo},
+		{testNamePython, testRefToolchainPython},
 		{"git-debian", "gsoci.azurecr.io/giantswarm/klaus-toolchains/git-debian"},
-		{"gsoci.azurecr.io/giantswarm/klaus-toolchains/go", "gsoci.azurecr.io/giantswarm/klaus-toolchains/go"},
+		{testRefToolchainGo, testRefToolchainGo},
 	}
 
 	for _, tt := range tests {
