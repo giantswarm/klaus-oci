@@ -23,7 +23,7 @@ func extractTarGz(r io.Reader, destDir string) error {
 	if err != nil {
 		return fmt.Errorf("creating gzip reader: %w", err)
 	}
-	defer gzr.Close()
+	defer func() { _ = gzr.Close() }()
 
 	cleanDest := filepath.Clean(destDir)
 	tr := tar.NewReader(gzr)
@@ -50,21 +50,21 @@ func extractTarGz(r io.Reader, destDir string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
+			if err := os.MkdirAll(target, 0o750); err != nil {
 				return fmt.Errorf("creating directory %s: %w", target, err)
 			}
 
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 				return fmt.Errorf("creating parent directory for %s: %w", target, err)
 			}
 
-			mode := os.FileMode(header.Mode) & 0o777
+			mode := header.FileInfo().Mode().Perm()
 			if mode == 0 {
 				mode = 0o644
 			}
 
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+			f, err := os.OpenFile(filepath.Clean(target), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 			if err != nil {
 				return fmt.Errorf("creating file %s: %w", target, err)
 			}
@@ -96,7 +96,15 @@ func createTarGz(sourceDir string) ([]byte, error) {
 	gzw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gzw)
 
-	err := filepath.WalkDir(sourceDir, func(path string, d fs.DirEntry, err error) error {
+	// Open the source directory as a root so file reads below cannot
+	// follow symlinks out of the tree (TOCTOU-safe, see gosec G122).
+	root, err := os.OpenRoot(sourceDir)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = root.Close() }()
+
+	err = filepath.WalkDir(sourceDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -139,11 +147,11 @@ func createTarGz(sourceDir string) ([]byte, error) {
 			return nil
 		}
 
-		f, err := os.Open(path)
+		f, err := root.Open(relPath)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = io.Copy(tw, f)
 		return err
@@ -168,7 +176,7 @@ func cleanAndCreate(dir string) error {
 	if err := os.RemoveAll(dir); err != nil {
 		return fmt.Errorf("cleaning destination %s: %w", dir, err)
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("creating destination %s: %w", dir, err)
 	}
 	return nil

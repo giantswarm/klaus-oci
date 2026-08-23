@@ -79,7 +79,7 @@ func credentialFromEnv(envValue, hostport string) (auth.Credential, bool) {
 // credentialFromFile reads a Docker/Podman config file and extracts
 // credentials for the given registry host.
 func credentialFromFile(path, hostport string) (auth.Credential, bool) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return auth.EmptyCredential, false
 	}

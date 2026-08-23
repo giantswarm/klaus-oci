@@ -10,11 +10,11 @@ func TestCache_WriteAndRead(t *testing.T) {
 
 	configJSON := json.RawMessage(`{"skills":["kubernetes"]}`)
 	annotations := map[string]string{
-		"io.giantswarm.klaus.name":        "test",
+		"io.giantswarm.klaus.name":        testNameTest,
 		"io.giantswarm.klaus.description": "a test artifact",
 	}
 	entry := CacheEntry{
-		Digest:      "sha256:abc123def456",
+		Digest:      testDigestAbc123Def456,
 		Ref:         "registry.example.com/test:v1.0.0",
 		ConfigJSON:  configJSON,
 		Annotations: annotations,
@@ -43,11 +43,11 @@ func TestCache_WriteAndRead(t *testing.T) {
 		t.Fatalf("unmarshal got ConfigJSON: %v", err)
 	}
 	gotSkills, ok := gotConfig["skills"].([]interface{})
-	if !ok || len(gotSkills) != 1 || gotSkills[0] != "kubernetes" {
+	if !ok || len(gotSkills) != 1 || gotSkills[0] != testKeywordKubernetes {
 		t.Errorf("ConfigJSON skills mismatch: got %v", gotConfig)
 	}
-	if got.Annotations["io.giantswarm.klaus.name"] != "test" {
-		t.Errorf("Annotations[name] = %q, want %q", got.Annotations["io.giantswarm.klaus.name"], "test")
+	if got.Annotations["io.giantswarm.klaus.name"] != testNameTest {
+		t.Errorf("Annotations[name] = %q, want %q", got.Annotations["io.giantswarm.klaus.name"], testNameTest)
 	}
 	if got.Annotations["io.giantswarm.klaus.description"] != "a test artifact" {
 		t.Errorf("Annotations[description] = %q, want %q", got.Annotations["io.giantswarm.klaus.description"], "a test artifact")
@@ -56,7 +56,7 @@ func TestCache_WriteAndRead(t *testing.T) {
 
 func TestIsCached(t *testing.T) {
 	dir := t.TempDir()
-	digest := "sha256:abc123def456"
+	digest := testDigestAbc123Def456
 
 	if IsCached(dir, digest) {
 		t.Error("expected not cached before write")

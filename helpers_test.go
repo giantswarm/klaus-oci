@@ -8,10 +8,10 @@ func TestSplitRegistryBase(t *testing.T) {
 		wantHost   string
 		wantPrefix string
 	}{
-		{"gsoci.azurecr.io/giantswarm/klaus-plugins", "gsoci.azurecr.io", "giantswarm/klaus-plugins/"},
-		{"gsoci.azurecr.io/giantswarm/klaus-personalities", "gsoci.azurecr.io", "giantswarm/klaus-personalities/"},
-		{"gsoci.azurecr.io", "gsoci.azurecr.io", ""},
-		{"localhost:5000/plugins", "localhost:5000", "plugins/"},
+		{testRegistryPlugins, testRegistryGSOCI, "giantswarm/klaus-plugins/"},
+		{"gsoci.azurecr.io/giantswarm/klaus-personalities", testRegistryGSOCI, "giantswarm/klaus-personalities/"},
+		{testRegistryGSOCI, testRegistryGSOCI, ""},
+		{"localhost:5000/plugins", testRegistryLocal, "plugins/"},
 		{"example.com/org/team/artifacts", "example.com", "org/team/artifacts/"},
 	}
 
@@ -33,7 +33,7 @@ func TestShortName(t *testing.T) {
 		repository string
 		want       string
 	}{
-		{"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform", "gs-platform"},
+		{"gsoci.azurecr.io/giantswarm/klaus-plugins/gs-platform", testNameGSPlatform},
 		{"registry.example.com/repo", "repo"},
 		{"simple", "simple"},
 	}
@@ -52,7 +52,7 @@ func TestTruncateDigest(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"sha256:abc123def456789abcdef", "sha256:abc123def456"},
+		{"sha256:abc123def456789abcdef", testDigestAbc123Def456},
 		{"sha256:short", "sha256:short"},
 		{"noprefix", "noprefix"},
 	}
@@ -74,22 +74,22 @@ func TestLatestSemverTag(t *testing.T) {
 	}{
 		{
 			name: "multiple versions",
-			tags: []string{"v0.0.1", "v0.0.3", "v0.0.2"},
-			want: "v0.0.3",
+			tags: []string{testTagV001, testTagV003, testTagV002},
+			want: testTagV003,
 		},
 		{
 			name: "single version",
-			tags: []string{"v1.0.0"},
-			want: "v1.0.0",
+			tags: []string{testTagV100},
+			want: testTagV100,
 		},
 		{
 			name: "mixed valid and invalid",
-			tags: []string{"latest", "v0.0.6", "main", "v0.0.7"},
-			want: "v0.0.7",
+			tags: []string{testTagLatest, "v0.0.6", testTagMain, testTagV007},
+			want: testTagV007,
 		},
 		{
 			name: "no valid semver",
-			tags: []string{"latest", "main", "dev"},
+			tags: []string{testTagLatest, testTagMain, testTagDev},
 			want: "",
 		},
 		{
@@ -99,7 +99,7 @@ func TestLatestSemverTag(t *testing.T) {
 		},
 		{
 			name: "prerelease lower than release",
-			tags: []string{"v1.0.0-rc.1", "v0.9.0"},
+			tags: []string{"v1.0.0-rc.1", testTagV090},
 			want: "v1.0.0-rc.1",
 		},
 	}
@@ -120,12 +120,12 @@ func TestSplitNameTag(t *testing.T) {
 		wantName string
 		wantTag  string
 	}{
-		{"gs-ae", "gs-ae", ""},
-		{"gs-ae:v0.0.7", "gs-ae", "v0.0.7"},
-		{"my-plugin:latest", "my-plugin", "latest"},
-		{"localhost:5000/repo", "localhost:5000/repo", ""},
-		{"localhost:5000/repo:v1.0.0", "localhost:5000/repo", "v1.0.0"},
-		{"registry.io/org/repo:tag", "registry.io/org/repo", "tag"},
+		{testNameGSAE, testNameGSAE, ""},
+		{"gs-ae:v0.0.7", testNameGSAE, testTagV007},
+		{"my-plugin:latest", "my-plugin", testTagLatest},
+		{testRefLocalRepo, testRefLocalRepo, ""},
+		{testRefLocalRepoV100, testRefLocalRepo, testTagV100},
+		{"registry.io/org/repo:tag", testRefOrgRepo, "tag"},
 	}
 
 	for _, tt := range tests {
@@ -146,14 +146,14 @@ func TestRepositoryFromRef(t *testing.T) {
 		ref  string
 		want string
 	}{
-		{"example.com/repo:v1.0.0", "example.com/repo"},
-		{"example.com/repo@sha256:abc123", "example.com/repo"},
-		{"example.com/repo", "example.com/repo"},
-		{"localhost:5000/repo", "localhost:5000/repo"},
-		{"localhost:5000/repo:v1.0.0", "localhost:5000/repo"},
-		{"localhost:5000", "localhost:5000"},
-		{"registry.io/org/repo:tag", "registry.io/org/repo"},
-		{"registry.io/org/repo@sha256:deadbeef", "registry.io/org/repo"},
+		{testRefExampleRepoV100, testRefExampleRepo},
+		{testRefExampleRepoDigest, testRefExampleRepo},
+		{testRefExampleRepo, testRefExampleRepo},
+		{testRefLocalRepo, testRefLocalRepo},
+		{testRefLocalRepoV100, testRefLocalRepo},
+		{testRegistryLocal, testRegistryLocal},
+		{"registry.io/org/repo:tag", testRefOrgRepo},
+		{"registry.io/org/repo@sha256:deadbeef", testRefOrgRepo},
 	}
 
 	for _, tt := range tests {
@@ -170,11 +170,11 @@ func TestHasTagOrDigest(t *testing.T) {
 		ref  string
 		want bool
 	}{
-		{"example.com/repo:v1.0.0", true},
-		{"example.com/repo@sha256:abc123", true},
-		{"example.com/repo", false},
-		{"localhost:5000/repo", false},
-		{"localhost:5000/repo:v1.0.0", true},
+		{testRefExampleRepoV100, true},
+		{testRefExampleRepoDigest, true},
+		{testRefExampleRepo, false},
+		{testRefLocalRepo, false},
+		{testRefLocalRepoV100, true},
 	}
 
 	for _, tt := range tests {
@@ -192,11 +192,11 @@ func TestExtractTag(t *testing.T) {
 		ref  string
 		want string
 	}{
-		{"example.com/repo:v1.0.0", "v1.0.0"},
-		{"example.com/repo:latest", "latest"},
-		{"example.com/repo@sha256:abc123", ""},
-		{"example.com/repo", ""},
-		{"localhost:5000/repo:v1.0.0", "v1.0.0"},
+		{testRefExampleRepoV100, testTagV100},
+		{"example.com/repo:latest", testTagLatest},
+		{testRefExampleRepoDigest, ""},
+		{testRefExampleRepo, ""},
+		{testRefLocalRepoV100, testTagV100},
 	}
 
 	for _, tt := range tests {

@@ -15,31 +15,31 @@ func TestReadPluginFromDir(t *testing.T) {
 		t.Fatalf("ReadPluginFromDir() error = %v", err)
 	}
 
-	if plugin.Name != "gs-base" {
-		t.Errorf("Name = %q, want %q", plugin.Name, "gs-base")
+	if plugin.Name != testNameGSBase {
+		t.Errorf("Name = %q, want %q", plugin.Name, testNameGSBase)
 	}
-	if plugin.Description != "A general purpose plugin" {
-		t.Errorf("Description = %q, want %q", plugin.Description, "A general purpose plugin")
+	if plugin.Description != testDescGeneralPlugin {
+		t.Errorf("Description = %q, want %q", plugin.Description, testDescGeneralPlugin)
 	}
-	if plugin.Author == nil || plugin.Author.Name != "Giant Swarm GmbH" {
+	if plugin.Author == nil || plugin.Author.Name != testAuthorGiantSwarmGmbH {
 		t.Errorf("Author = %+v, want name 'Giant Swarm GmbH'", plugin.Author)
 	}
-	if plugin.SourceRepo != "https://github.com/giantswarm/claude-code" {
+	if plugin.SourceRepo != testSourceClaudeCode {
 		t.Errorf("SourceRepo = %q", plugin.SourceRepo)
 	}
-	if plugin.License != "Apache-2.0" {
+	if plugin.License != testLicenseApache2 {
 		t.Errorf("License = %q", plugin.License)
 	}
 	if plugin.Homepage != "https://docs.giantswarm.io" {
 		t.Errorf("Homepage = %q", plugin.Homepage)
 	}
 
-	wantKeywords := []string{"giantswarm", "platform"}
+	wantKeywords := []string{testOrgGiantSwarm, testNamePlatform}
 	if len(plugin.Keywords) != len(wantKeywords) {
 		t.Errorf("Keywords = %v, want %v", plugin.Keywords, wantKeywords)
 	}
 
-	wantSkills := []string{"fluxcd", "kubernetes"}
+	wantSkills := []string{testNameFluxCD, testKeywordKubernetes}
 	if len(plugin.Skills) != len(wantSkills) {
 		t.Errorf("Skills = %v, want %v", plugin.Skills, wantSkills)
 	} else {
@@ -50,7 +50,7 @@ func TestReadPluginFromDir(t *testing.T) {
 		}
 	}
 
-	wantCommands := []string{"hello", "init-kubernetes"}
+	wantCommands := []string{testValueHello, testNameInitKubernetes}
 	if len(plugin.Commands) != len(wantCommands) {
 		t.Errorf("Commands = %v, want %v", plugin.Commands, wantCommands)
 	} else {
@@ -61,7 +61,7 @@ func TestReadPluginFromDir(t *testing.T) {
 		}
 	}
 
-	wantAgents := []string{"code-reviewer", "security-reviewer"}
+	wantAgents := []string{testNameCodeReviewer, "security-reviewer"}
 	if len(plugin.Agents) != len(wantAgents) {
 		t.Errorf("Agents = %v, want %v", plugin.Agents, wantAgents)
 	} else {
@@ -76,18 +76,18 @@ func TestReadPluginFromDir(t *testing.T) {
 		t.Error("HasHooks = false, want true")
 	}
 
-	wantMCP := []string{"github"}
+	wantMCP := []string{testNameGitHub}
 	if len(plugin.MCPServers) != len(wantMCP) {
 		t.Errorf("MCPServers = %v, want %v", plugin.MCPServers, wantMCP)
-	} else if plugin.MCPServers[0] != "github" {
-		t.Errorf("MCPServers[0] = %q, want %q", plugin.MCPServers[0], "github")
+	} else if plugin.MCPServers[0] != testNameGitHub {
+		t.Errorf("MCPServers[0] = %q, want %q", plugin.MCPServers[0], testNameGitHub)
 	}
 
-	wantLSP := []string{"gopls"}
+	wantLSP := []string{testNameGopls}
 	if len(plugin.LSPServers) != len(wantLSP) {
 		t.Errorf("LSPServers = %v, want %v", plugin.LSPServers, wantLSP)
-	} else if plugin.LSPServers[0] != "gopls" {
-		t.Errorf("LSPServers[0] = %q, want %q", plugin.LSPServers[0], "gopls")
+	} else if plugin.LSPServers[0] != testNameGopls {
+		t.Errorf("LSPServers[0] = %q, want %q", plugin.LSPServers[0], testNameGopls)
 	}
 
 	if plugin.Version != "" {
@@ -105,8 +105,8 @@ func TestReadPluginFromDir_Minimal(t *testing.T) {
 		t.Fatalf("ReadPluginFromDir() error = %v", err)
 	}
 
-	if plugin.Name != "commit-commands" {
-		t.Errorf("Name = %q, want %q", plugin.Name, "commit-commands")
+	if plugin.Name != testNameCommitCommands {
+		t.Errorf("Name = %q, want %q", plugin.Name, testNameCommitCommands)
 	}
 	if plugin.Description != "Simple commands" {
 		t.Errorf("Description = %q", plugin.Description)
@@ -234,43 +234,43 @@ plugins:
 		t.Fatalf("ReadPersonalityFromDir() error = %v", err)
 	}
 
-	if p.Name != "sre" {
-		t.Errorf("Name = %q, want %q", p.Name, "sre")
+	if p.Name != testNameSRE {
+		t.Errorf("Name = %q, want %q", p.Name, testNameSRE)
 	}
-	if p.Description != "Giant Swarm SRE personality" {
+	if p.Description != testDescGSSREPersonality {
 		t.Errorf("Description = %q", p.Description)
 	}
-	if p.Author == nil || p.Author.Name != "Giant Swarm GmbH" {
+	if p.Author == nil || p.Author.Name != testAuthorGiantSwarmGmbH {
 		t.Errorf("Author = %+v", p.Author)
 	}
-	if p.SourceRepo != "https://github.com/giantswarm/klaus-personalities" {
+	if p.SourceRepo != testSourcePersonalities {
 		t.Errorf("SourceRepo = %q", p.SourceRepo)
 	}
-	if p.License != "Apache-2.0" {
+	if p.License != testLicenseApache2 {
 		t.Errorf("License = %q", p.License)
 	}
 	if len(p.Keywords) != 4 {
 		t.Errorf("Keywords length = %d, want 4", len(p.Keywords))
 	}
-	if p.Toolchain.Repository != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" {
+	if p.Toolchain.Repository != testRefToolchainGo {
 		t.Errorf("Toolchain.Repository = %q", p.Toolchain.Repository)
 	}
-	if p.Toolchain.Tag != "latest" {
+	if p.Toolchain.Tag != testTagLatest {
 		t.Errorf("Toolchain.Tag = %q", p.Toolchain.Tag)
 	}
 	if len(p.Plugins) != 2 {
 		t.Fatalf("Plugins length = %d, want 2", len(p.Plugins))
 	}
-	if p.Plugins[0].Repository != "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-base" {
+	if p.Plugins[0].Repository != testRefPluginGSBase {
 		t.Errorf("Plugins[0].Repository = %q", p.Plugins[0].Repository)
 	}
-	if p.Plugins[0].Tag != "latest" {
+	if p.Plugins[0].Tag != testTagLatest {
 		t.Errorf("Plugins[0].Tag = %q", p.Plugins[0].Tag)
 	}
-	if p.Plugins[1].Repository != "gsoci.azurecr.io/giantswarm/klaus-plugins/gs-sre" {
+	if p.Plugins[1].Repository != testRefPluginGSSRE {
 		t.Errorf("Plugins[1].Repository = %q", p.Plugins[1].Repository)
 	}
-	if p.Plugins[1].Tag != "v1.2.0" {
+	if p.Plugins[1].Tag != testTagV120 {
 		t.Errorf("Plugins[1].Tag = %q", p.Plugins[1].Tag)
 	}
 	if p.Version != "" {
@@ -293,8 +293,8 @@ toolchain:
 		t.Fatalf("ReadPersonalityFromDir() error = %v", err)
 	}
 
-	if p.Name != "python" {
-		t.Errorf("Name = %q, want %q", p.Name, "python")
+	if p.Name != testNamePython {
+		t.Errorf("Name = %q, want %q", p.Name, testNamePython)
 	}
 	if p.Description != "Python personality" {
 		t.Errorf("Description = %q", p.Description)
@@ -305,7 +305,7 @@ toolchain:
 	if p.SourceRepo != "" {
 		t.Errorf("SourceRepo = %q, want empty", p.SourceRepo)
 	}
-	if p.Toolchain.Repository != "gsoci.azurecr.io/giantswarm/klaus-toolchains/python" {
+	if p.Toolchain.Repository != testRefToolchainPython {
 		t.Errorf("Toolchain.Repository = %q", p.Toolchain.Repository)
 	}
 	if len(p.Plugins) != 0 {
@@ -382,8 +382,8 @@ toolchain:
 		t.Fatalf("ReadPersonalityFromDir() error = %v", err)
 	}
 
-	if p.Name != "sre" {
-		t.Errorf("Name = %q, want %q", p.Name, "sre")
+	if p.Name != testNameSRE {
+		t.Errorf("Name = %q, want %q", p.Name, testNameSRE)
 	}
 }
 
@@ -411,14 +411,14 @@ plugins:
 	if p.Homepage != "https://docs.giantswarm.io/klaus/production" {
 		t.Errorf("Homepage = %q", p.Homepage)
 	}
-	if p.Toolchain.Tag != "v1.2.0" {
-		t.Errorf("Toolchain.Tag = %q, want %q", p.Toolchain.Tag, "v1.2.0")
+	if p.Toolchain.Tag != testTagV120 {
+		t.Errorf("Toolchain.Tag = %q, want %q", p.Toolchain.Tag, testTagV120)
 	}
 	if len(p.Plugins) != 2 {
 		t.Fatalf("Plugins length = %d, want 2", len(p.Plugins))
 	}
-	if p.Plugins[0].Tag != "v0.1.0" {
-		t.Errorf("Plugins[0].Tag = %q, want %q", p.Plugins[0].Tag, "v0.1.0")
+	if p.Plugins[0].Tag != testTagV010 {
+		t.Errorf("Plugins[0].Tag = %q, want %q", p.Plugins[0].Tag, testTagV010)
 	}
 	if p.Plugins[1].Digest != "sha256:abcdef1234567890" {
 		t.Errorf("Plugins[1].Digest = %q, want %q", p.Plugins[1].Digest, "sha256:abcdef1234567890")
@@ -457,7 +457,7 @@ func TestReadPluginFromDir_MultipleMCPServers(t *testing.T) {
 	if len(plugin.MCPServers) != 3 {
 		t.Fatalf("MCPServers length = %d, want 3: %v", len(plugin.MCPServers), plugin.MCPServers)
 	}
-	if plugin.MCPServers[0] != "github" || plugin.MCPServers[1] != "gitlab" || plugin.MCPServers[2] != "jira" {
+	if plugin.MCPServers[0] != testNameGitHub || plugin.MCPServers[1] != "gitlab" || plugin.MCPServers[2] != "jira" {
 		t.Errorf("MCPServers = %v, want [github gitlab jira] (sorted)", plugin.MCPServers)
 	}
 }
@@ -497,7 +497,7 @@ func TestReadPluginFromDir_NonMDInCommands(t *testing.T) {
 	if len(plugin.Commands) != 2 {
 		t.Fatalf("Commands length = %d, want 2: %v", len(plugin.Commands), plugin.Commands)
 	}
-	if plugin.Commands[0] != "hello" || plugin.Commands[1] != "init" {
+	if plugin.Commands[0] != testValueHello || plugin.Commands[1] != "init" {
 		t.Errorf("Commands = %v, want [hello init] (sorted, non-.md filtered)", plugin.Commands)
 	}
 }
@@ -539,10 +539,10 @@ func TestReadPluginFromDir_WithAuthorDetails(t *testing.T) {
 	if plugin.Author.Name != "Test Author" {
 		t.Errorf("Author.Name = %q", plugin.Author.Name)
 	}
-	if plugin.Author.Email != "test@example.com" {
+	if plugin.Author.Email != testEmail {
 		t.Errorf("Author.Email = %q", plugin.Author.Email)
 	}
-	if plugin.Author.URL != "https://example.com" {
+	if plugin.Author.URL != testURLExample {
 		t.Errorf("Author.URL = %q", plugin.Author.URL)
 	}
 }
@@ -565,7 +565,7 @@ func TestReadPluginFromDir_OnlyAgents(t *testing.T) {
 	if len(plugin.Agents) != 3 {
 		t.Fatalf("Agents length = %d, want 3: %v", len(plugin.Agents), plugin.Agents)
 	}
-	expected := []string{"code-architect", "code-explorer", "code-reviewer"}
+	expected := []string{"code-architect", "code-explorer", testNameCodeReviewer}
 	for i, want := range expected {
 		if plugin.Agents[i] != want {
 			t.Errorf("Agents[%d] = %q, want %q", i, plugin.Agents[i], want)
@@ -618,28 +618,28 @@ plugins:
 	if p.Author == nil {
 		t.Fatal("Author is nil")
 	}
-	if p.Author.Name != "Giant Swarm GmbH" {
+	if p.Author.Name != testAuthorGiantSwarmGmbH {
 		t.Errorf("Author.Name = %q", p.Author.Name)
 	}
 	if p.Author.Email != "support@giantswarm.io" {
 		t.Errorf("Author.Email = %q", p.Author.Email)
 	}
-	if p.Author.URL != "https://giantswarm.io" {
+	if p.Author.URL != testHomeURL {
 		t.Errorf("Author.URL = %q", p.Author.URL)
 	}
-	if p.Homepage != "https://docs.giantswarm.io/klaus/" {
+	if p.Homepage != testDocsURL {
 		t.Errorf("Homepage = %q", p.Homepage)
 	}
-	if p.SourceRepo != "https://github.com/giantswarm/klaus-personalities" {
+	if p.SourceRepo != testSourcePersonalities {
 		t.Errorf("SourceRepo = %q", p.SourceRepo)
 	}
-	if p.License != "Apache-2.0" {
+	if p.License != testLicenseApache2 {
 		t.Errorf("License = %q", p.License)
 	}
 	if len(p.Keywords) != 4 {
 		t.Errorf("Keywords length = %d, want 4: %v", len(p.Keywords), p.Keywords)
 	}
-	if p.Toolchain.Repository != "gsoci.azurecr.io/giantswarm/klaus-toolchains/go" {
+	if p.Toolchain.Repository != testRefToolchainGo {
 		t.Errorf("Toolchain.Repository = %q", p.Toolchain.Repository)
 	}
 	if p.Version != "" {
@@ -662,8 +662,8 @@ func setupFullPlugin(t *testing.T, dir string) {
   "keywords": ["giantswarm", "platform"]
 }`)
 
-	writeFile(t, filepath.Join(dir, "skills", "kubernetes", "SKILL.md"), "# Kubernetes")
-	writeFile(t, filepath.Join(dir, "skills", "fluxcd", "SKILL.md"), "# FluxCD")
+	writeFile(t, filepath.Join(dir, "skills", testKeywordKubernetes, "SKILL.md"), "# Kubernetes")
+	writeFile(t, filepath.Join(dir, "skills", testNameFluxCD, "SKILL.md"), "# FluxCD")
 
 	writeFile(t, filepath.Join(dir, "commands", "hello.md"), "# Hello command")
 	writeFile(t, filepath.Join(dir, "commands", "init-kubernetes.md"), "# Init Kubernetes")
@@ -680,14 +680,14 @@ func setupFullPlugin(t *testing.T, dir string) {
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	mkdirAll(t, filepath.Dir(path))
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("writing %s: %v", path, err)
 	}
 }
 
 func mkdirAll(t *testing.T, path string) {
 	t.Helper()
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, 0o750); err != nil {
 		t.Fatalf("creating directory %s: %v", path, err)
 	}
 }

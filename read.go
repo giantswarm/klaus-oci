@@ -26,7 +26,7 @@ import (
 // Version is NOT set -- it is conveyed via the OCI tag at push time.
 func ReadPluginFromDir(dir string) (*Plugin, error) {
 	manifestPath := filepath.Join(dir, ".claude-plugin", "plugin.json")
-	data, err := os.ReadFile(manifestPath)
+	data, err := os.ReadFile(filepath.Clean(manifestPath))
 	if err != nil {
 		return nil, fmt.Errorf("reading plugin manifest: %w", err)
 	}
@@ -54,7 +54,7 @@ func ReadPluginFromDir(dir string) (*Plugin, error) {
 // automatically when PushPersonality tar.gz's the source directory.
 func ReadPersonalityFromDir(dir string) (*Personality, error) {
 	yamlPath := filepath.Join(dir, "personality.yaml")
-	data, err := os.ReadFile(yamlPath)
+	data, err := os.ReadFile(filepath.Clean(yamlPath))
 	if err != nil {
 		return nil, fmt.Errorf("reading personality.yaml: %w", err)
 	}
@@ -130,7 +130,7 @@ func detectHooks(dir string) bool {
 // discoverJSONKeys reads a JSON file and returns its top-level object keys,
 // sorted. Returns nil if the file doesn't exist or isn't a JSON object.
 func discoverJSONKeys(path string) []string {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil
 	}

@@ -87,7 +87,7 @@ func (r *cacheRegistry) handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := req.URL.Path
 		switch {
-		case path == "/v2/" || path == "/v2":
+		case path == testPathV2Slash || path == testPathV2:
 			w.WriteHeader(http.StatusOK)
 			return
 		case path == "/v2/_catalog":
@@ -106,7 +106,7 @@ func (r *cacheRegistry) handler() http.Handler {
 			return
 		case strings.HasSuffix(path, "/tags/list"):
 			r.tagsCount.Add(1)
-			repo := strings.TrimPrefix(path, "/v2/")
+			repo := strings.TrimPrefix(path, testPathV2Slash)
 			repo = strings.TrimSuffix(repo, "/tags/list")
 			r.mu.Lock()
 			tagMap := r.repos[repo]
@@ -129,11 +129,11 @@ func (r *cacheRegistry) handler() http.Handler {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("ETag", etag)
-			_ = json.NewEncoder(w).Encode(map[string]any{"name": repo, "tags": tags})
+			_ = json.NewEncoder(w).Encode(map[string]any{testKeyName: repo, testKeyTags: tags})
 			return
 		case strings.Contains(path, "/manifests/"):
 			idx := strings.Index(path, "/manifests/")
-			repo := strings.TrimPrefix(path[:idx], "/v2/")
+			repo := strings.TrimPrefix(path[:idx], testPathV2Slash)
 			ref := path[idx+len("/manifests/"):]
 			r.mu.Lock()
 			tagMap := r.repos[repo]
@@ -208,7 +208,7 @@ func newCacheTestClient(t *testing.T, reg *cacheRegistry, opts ...ClientOption) 
 // does no network traffic.
 func TestCacheHit_NoNetwork(t *testing.T) {
 	reg := newCacheRegistry()
-	digest := reg.addManifest("team/hello", "v1.0.0", []byte(`{"manifest":1}`))
+	digest := reg.addManifest("team/hello", testTagV100, []byte(`{"manifest":1}`))
 
 	c, host, _ := newCacheTestClient(t, reg)
 	ref := host + "/team/hello:v1.0.0"
@@ -429,7 +429,7 @@ func TestAtomicWriteConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		t.Fatalf("read final: %v", err)
 	}
@@ -474,7 +474,7 @@ func TestContentStoreCachesBlobs(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, _ := io.ReadAll(rc)
-	rc.Close()
+	_ = rc.Close()
 	if string(got) != string(body) {
 		t.Fatalf("blob mismatch: %q vs %q", got, body)
 	}
@@ -485,7 +485,7 @@ func TestContentStoreCachesBlobs(t *testing.T) {
 		t.Fatal(err)
 	}
 	got2, _ := io.ReadAll(rc)
-	rc.Close()
+	_ = rc.Close()
 	if string(got2) != string(body) {
 		t.Fatal("second fetch content mismatch")
 	}
@@ -562,20 +562,20 @@ func TestCatalogCaching(t *testing.T) {
 // does zero network calls within the fresh window.
 func TestFullResolveZeroNetwork(t *testing.T) {
 	reg := newCacheRegistry()
-	reg.addManifest("team/personas/sre", "v0.1.0", []byte(`{"personality":1}`))
-	reg.addManifest("team/plugins/gs-base", "v1.0.0", []byte(`{"plugin":1}`))
-	reg.addManifest("team/plugins/gs-base", "v1.1.0", []byte(`{"plugin":2}`))
-	reg.addManifest("team/toolchains/go", "v2.0.0", []byte(`{"toolchain":1}`))
+	reg.addManifest("team/personas/sre", testTagV010, []byte(`{"personality":1}`))
+	reg.addManifest("team/plugins/gs-base", testTagV100, []byte(`{"plugin":1}`))
+	reg.addManifest("team/plugins/gs-base", testTagV110, []byte(`{"plugin":2}`))
+	reg.addManifest("team/toolchains/go", testTagV200, []byte(`{"toolchain":1}`))
 
 	c, host, _ := newCacheTestClient(t, reg)
 	ctx := context.Background()
 
 	// First invocation: cold cache.
-	_, err := c.ResolvePersonalityRef_withBase(ctx, "sre", host+"/team/personas")
+	_, err := c.ResolvePersonalityRef_withBase(ctx, testNameSRE, host+"/team/personas")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.ResolvePluginRef_withBase(ctx, "gs-base", host+"/team/plugins"); err != nil {
+	if _, err := c.ResolvePluginRef_withBase(ctx, testNameGSBase, host+"/team/plugins"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.ResolveToolchainRef_withBase(ctx, "go", host+"/team/toolchains"); err != nil {
@@ -585,10 +585,10 @@ func TestFullResolveZeroNetwork(t *testing.T) {
 	before := reg.tagsCount.Load() + reg.headCount.Load() + reg.catalogCount.Load() + reg.blobCount.Load() + reg.manifestCount.Load()
 
 	// Second invocation: everything must hit the cache.
-	if _, err := c.ResolvePersonalityRef_withBase(ctx, "sre", host+"/team/personas"); err != nil {
+	if _, err := c.ResolvePersonalityRef_withBase(ctx, testNameSRE, host+"/team/personas"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.ResolvePluginRef_withBase(ctx, "gs-base", host+"/team/plugins"); err != nil {
+	if _, err := c.ResolvePluginRef_withBase(ctx, testNameGSBase, host+"/team/plugins"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.ResolveToolchainRef_withBase(ctx, "go", host+"/team/toolchains"); err != nil {

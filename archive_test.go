@@ -12,13 +12,13 @@ import (
 func TestCreateAndExtractTarGz(t *testing.T) {
 	// Create a source directory with test files.
 	srcDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "hello.txt"), []byte("hello"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "hello.txt"), []byte(testValueHello), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "subdir", "world.txt"), []byte("world"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "subdir", "world.txt"), []byte("world"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,15 +39,15 @@ func TestCreateAndExtractTarGz(t *testing.T) {
 	}
 
 	// Verify extracted files.
-	content, err := os.ReadFile(filepath.Join(destDir, "hello.txt"))
+	content, err := os.ReadFile(filepath.Clean(filepath.Join(destDir, "hello.txt")))
 	if err != nil {
 		t.Fatalf("reading hello.txt: %v", err)
 	}
-	if string(content) != "hello" {
-		t.Errorf("hello.txt = %q, want %q", content, "hello")
+	if string(content) != testValueHello {
+		t.Errorf("hello.txt = %q, want %q", content, testValueHello)
 	}
 
-	content, err = os.ReadFile(filepath.Join(destDir, "subdir", "world.txt"))
+	content, err = os.ReadFile(filepath.Clean(filepath.Join(destDir, "subdir", "world.txt")))
 	if err != nil {
 		t.Fatalf("reading subdir/world.txt: %v", err)
 	}
@@ -58,10 +58,10 @@ func TestCreateAndExtractTarGz(t *testing.T) {
 
 func TestCreateTarGz_SkipsCacheFile(t *testing.T) {
 	srcDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(srcDir, "data.txt"), []byte("data"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "data.txt"), []byte("data"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, cacheFileName), []byte("cache"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, cacheFileName), []byte("cache"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,7 +75,7 @@ func TestCreateTarGz_SkipsCacheFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer gzr.Close()
+	defer func() { _ = gzr.Close() }()
 
 	tr := tar.NewReader(gzr)
 	for {
@@ -95,15 +95,23 @@ func TestExtractTarGz_PathTraversal(t *testing.T) {
 	tw := tar.NewWriter(gzw)
 
 	// Write a malicious entry with path traversal.
-	tw.WriteHeader(&tar.Header{
+	if err := tw.WriteHeader(&tar.Header{
 		Name:     "../escape.txt",
 		Mode:     0o644,
 		Size:     4,
 		Typeflag: tar.TypeReg,
-	})
-	tw.Write([]byte("evil"))
-	tw.Close()
-	gzw.Close()
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write([]byte("evil")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzw.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	destDir := t.TempDir()
 	err := extractTarGz(&buf, destDir)
@@ -118,17 +126,25 @@ func TestExtractTarGz_FileSizeLimit(t *testing.T) {
 	tw := tar.NewWriter(gzw)
 
 	// Write a header claiming a huge file.
-	tw.WriteHeader(&tar.Header{
+	if err := tw.WriteHeader(&tar.Header{
 		Name:     "huge.bin",
 		Mode:     0o644,
 		Size:     maxExtractFileSize + 100,
 		Typeflag: tar.TypeReg,
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	// Write just enough to exceed the limit check.
 	bigData := make([]byte, maxExtractFileSize+100)
-	tw.Write(bigData)
-	tw.Close()
-	gzw.Close()
+	if _, err := tw.Write(bigData); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzw.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	destDir := t.TempDir()
 	err := extractTarGz(&buf, destDir)

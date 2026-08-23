@@ -61,7 +61,7 @@ func (c *Client) ResolvePersonalityDeps(ctx context.Context, p Personality) (*Re
 
 	// Collect only the successfully resolved plugins (non-zero entries).
 	for _, dp := range plugins {
-		if dp.Plugin.Name != "" || dp.ArtifactInfo.Ref != "" {
+		if dp.Name != "" || dp.Ref != "" {
 			result.Plugins = append(result.Plugins, dp)
 		}
 	}

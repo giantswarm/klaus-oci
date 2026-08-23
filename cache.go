@@ -38,7 +38,7 @@ func IsCached(dir string, digest string) bool {
 // ReadCacheEntry reads the cache metadata from a directory.
 func ReadCacheEntry(dir string) (*CacheEntry, error) {
 	path := filepath.Join(dir, cacheFileName)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, err
 	}
@@ -62,5 +62,5 @@ func WriteCacheEntry(dir string, entry CacheEntry) error {
 	}
 
 	path := filepath.Join(dir, cacheFileName)
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
