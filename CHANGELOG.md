@@ -35,28 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-03-02
+
 ### Fixed
 
 - Support `identitytoken` field in Docker/Podman credential config files. Azure Container Registry stores OAuth2 refresh tokens in this field (via `az acr login`), which is now mapped to `auth.Credential.RefreshToken` for proper OAuth2 token exchange. Previously only the `auth` (basic credential) field was read, causing 401 errors against private ACR registries.
 
+## [0.0.9] - 2026-02-27
+
 ### Changed
 
-- **BREAKING**: Unified domain types -- `PluginMeta` renamed to `Plugin`, `PersonalityMeta`/`PersonalitySpec` merged into `Personality`, `ToolchainMeta` replaced by `Toolchain` with richer metadata fields (Author, Homepage, SourceRepo, License, Keywords derived from OCI manifest annotations).
-- **BREAKING**: `PersonalitySpec.Image` (string) replaced by `Personality.Toolchain` (`ToolchainReference` with Repository/Tag/Digest).
-- **BREAKING**: Pull return types changed from `*Personality`/`*Plugin` (which were pull result wrappers) to `*PulledPersonality`/`*PulledPlugin`, embedding the domain type plus OCI metadata and local file state.
-- **BREAKING**: List return types unified from `[]ListedPersonality`/`[]ListedPlugin`/`[]ListedToolchain` to `[]ListEntry` across all three artifact types.
-- **BREAKING**: Version excluded from OCI config blob for all artifact types (`json:"-"`). Version is conveyed exclusively via OCI tags and populated from the resolved tag during describe/pull. Existing artifacts need re-pushing.
-- **BREAKING**: Personality config blob now contains the full `Personality` struct (metadata + composition: toolchain reference, plugin references) instead of the previous minimal `{name, version, description}`.
-- **BREAKING**: `personality.yaml` format overhauled: `image: "..."` replaced by `toolchain: {repository: "...", tag: "..."}`, `name` field now required (previously implicit from directory name), new optional fields `author`, `repository`, `homepage`, `license`, `keywords`.
-- **BREAKING**: `ReadPersonalityFromDir` signature changed from `ReadPersonalityFromDir(dir, name, version)` to `ReadPersonalityFromDir(dir)` -- name comes from `personality.yaml`, version from OCI tag.
-- **BREAKING**: `PushPersonality` and `PushPlugin` now accept the domain type structs (`Personality`, `Plugin`) instead of the old `PersonalityMeta`/`PluginMeta`.
-- Move toolchain images to `giantswarm/klaus-toolchains/<name>` sub-namespace (e.g. `gsoci.azurecr.io/giantswarm/klaus-toolchains/go`), matching the existing plugin and personality patterns. This narrows `ListRepositories` from scanning the entire `giantswarm/` catalog (921 repos, ~30s cold) to just the `klaus-toolchains/` sub-namespace.
-- `DefaultToolchainRegistry` changed from `gsoci.azurecr.io/giantswarm` to `gsoci.azurecr.io/giantswarm/klaus-toolchains`.
-- `ToolchainRegistryRef` no longer prepends `klaus-` to short names.
-- `ResolveArtifactRef` signature simplified: removed the `namePrefix` parameter (no callers use it after the sub-namespace migration).
-- `ResolveToolchainRef` no longer uses `"klaus-"` name prefix.
-- `ListRepositories` now uses the catalog `last` parameter to seek past repositories that sort before the target prefix and stops early once past it, avoiding full catalog scans on large registries (921 repos down to 1-2 pages).
-- Replace generic `Pull`/`Push`/`ListArtifacts` API with typed facade: consumers now use `PullPersonality`, `PullPlugin`, `PushPersonality`, `PushPlugin`, `ListPersonalities`, `ListPlugins`, `ListToolchains` instead of interacting with raw OCI concepts.
 - **BREAKING**: Common metadata (name, description, author, homepage, repository, license, keywords) moved from OCI config blobs into `io.giantswarm.klaus.*` manifest annotations for plugins and personalities. Config blobs now contain only type-specific data: discovered components for plugins and composition (toolchain + plugin references) for personalities. Existing artifacts need re-pushing.
 - **BREAKING**: Toolchain annotations switched from `org.opencontainers.image.*` to `io.giantswarm.klaus.*` namespace. Existing toolchain images need to be re-built with the new labels.
 - **BREAKING**: Cache entries now include manifest annotations. Old cached artifacts without the `Annotations` field will lose common metadata until re-pulled.
@@ -65,22 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `klausMetadata()` methods on `Plugin` and `Personality` to extract common metadata without manual field copying.
 - Trim whitespace from comma-separated keywords when parsing annotations.
 
-### Removed
-
-- `PluginMeta` -- replaced by `Plugin` (domain type with both manifest metadata and discovered components).
-- `PersonalityMeta`, `PersonalitySpec` -- replaced by unified `Personality` type with dual `yaml`/`json` struct tags.
-- `ToolchainMeta` -- replaced by `Toolchain` with richer metadata fields.
-- `ArtifactResult` -- replaced by `ArtifactInfo` (embedded in `DescribedPlugin`, `PulledPlugin`, etc.).
-- `ListedPersonality`, `ListedPlugin`, `ListedToolchain` -- replaced by unified `ListEntry` type.
-- `ListedArtifactInfo` -- no longer needed.
-- `ArtifactInfo`, `ArtifactInfoFromAnnotations`, `AnnotationKlausType`, `AnnotationKlausName`, `AnnotationKlausVersion`, `TypePlugin`, `TypePersonality`, `TypeToolchain` -- annotation-based metadata is redundant now that each artifact type has its own sub-namespace.
-- `FetchManifestAnnotations`, `FetchArtifactInfo` -- no longer needed without annotation-based identification.
-- `WithAnnotations` option for `ListArtifacts` -- annotation fetching removed entirely.
-- `WithPlatform` client option -- only used by the removed manifest annotation path.
-- `ShortToolchainName` -- use `ShortName` instead.
-- `Pull`, `Push`, `ListArtifacts`, `ListRepositories` -- replaced by typed methods.
-- `ArtifactKind`, `PluginArtifact`, `PersonalityArtifact` -- internalized; consumers no longer need to specify artifact kinds.
-- `PullResult`, `ListedArtifact` -- replaced by typed result structs.
+## [0.0.8] - 2026-02-25
 
 ### Added
 
@@ -105,11 +78,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WithRegistry` list option to override the default registry base path.
 - `WithFilter` option for listing methods to skip repositories before resolution.
 - OCI config blob persisted in cache entries so metadata is always populated on cache hits.
-- `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.
 - `ResolvePluginRefs` batch resolution of `[]PluginReference`.
+- ORAS-based `Client` with typed pull, push, resolve, and list operations.
+
+### Changed
+
+- **BREAKING**: Unified domain types -- `PluginMeta` renamed to `Plugin`, `PersonalityMeta`/`PersonalitySpec` merged into `Personality`, `ToolchainMeta` replaced by `Toolchain` with richer metadata fields (Author, Homepage, SourceRepo, License, Keywords derived from OCI manifest annotations).
+- **BREAKING**: `PersonalitySpec.Image` (string) replaced by `Personality.Toolchain` (`ToolchainReference` with Repository/Tag/Digest).
+- **BREAKING**: Pull return types changed from `*Personality`/`*Plugin` (which were pull result wrappers) to `*PulledPersonality`/`*PulledPlugin`, embedding the domain type plus OCI metadata and local file state.
+- **BREAKING**: List return types unified from `[]ListedPersonality`/`[]ListedPlugin`/`[]ListedToolchain` to `[]ListEntry` across all three artifact types.
+- **BREAKING**: Version excluded from OCI config blob for all artifact types (`json:"-"`). Version is conveyed exclusively via OCI tags and populated from the resolved tag during describe/pull. Existing artifacts need re-pushing.
+- **BREAKING**: Personality config blob now contains the full `Personality` struct (metadata + composition: toolchain reference, plugin references) instead of the previous minimal `{name, version, description}`.
+- **BREAKING**: `personality.yaml` format overhauled: `image: "..."` replaced by `toolchain: {repository: "...", tag: "..."}`, `name` field now required (previously implicit from directory name), new optional fields `author`, `repository`, `homepage`, `license`, `keywords`.
+- **BREAKING**: `ReadPersonalityFromDir` signature changed from `ReadPersonalityFromDir(dir, name, version)` to `ReadPersonalityFromDir(dir)` -- name comes from `personality.yaml`, version from OCI tag.
+- **BREAKING**: `PushPersonality` and `PushPlugin` now accept the domain type structs (`Personality`, `Plugin`) instead of the old `PersonalityMeta`/`PluginMeta`.
+- Replace generic `Pull`/`Push`/`ListArtifacts` API with typed facade: consumers now use `PullPersonality`, `PullPlugin`, `PushPersonality`, `PushPlugin`, `ListPersonalities`, `ListPlugins`, `ListToolchains` instead of interacting with raw OCI concepts.
+
+### Removed
+
+- `PluginMeta` -- replaced by `Plugin` (domain type with both manifest metadata and discovered components).
+- `PersonalityMeta`, `PersonalitySpec` -- replaced by unified `Personality` type with dual `yaml`/`json` struct tags.
+- `ToolchainMeta` -- replaced by `Toolchain` with richer metadata fields.
+- `ArtifactResult` -- replaced by `ArtifactInfo` (embedded in `DescribedPlugin`, `PulledPlugin`, etc.).
+- `ListedPersonality`, `ListedPlugin`, `ListedToolchain` -- replaced by unified `ListEntry` type.
+- `ListedArtifactInfo` -- no longer needed.
+- `ArtifactInfo`, `ArtifactInfoFromAnnotations`, `AnnotationKlausType`, `AnnotationKlausName`, `AnnotationKlausVersion`, `TypePlugin`, `TypePersonality`, `TypeToolchain` -- annotation-based metadata is redundant now that each artifact type has its own sub-namespace.
+- `Pull`, `Push`, `ListArtifacts`, `ListRepositories` -- replaced by typed methods.
+- `ArtifactKind`, `PluginArtifact`, `PersonalityArtifact` -- internalized; consumers no longer need to specify artifact kinds.
+- `PullResult`, `ListedArtifact` -- replaced by typed result structs.
+
+## [0.0.7] - 2026-02-21
+
+### Changed
+
+- Move toolchain images to `giantswarm/klaus-toolchains/<name>` sub-namespace (e.g. `gsoci.azurecr.io/giantswarm/klaus-toolchains/go`), matching the existing plugin and personality patterns. This narrows `ListRepositories` from scanning the entire `giantswarm/` catalog (921 repos, ~30s cold) to just the `klaus-toolchains/` sub-namespace.
+- `DefaultToolchainRegistry` changed from `gsoci.azurecr.io/giantswarm` to `gsoci.azurecr.io/giantswarm/klaus-toolchains`.
+- `ToolchainRegistryRef` no longer prepends `klaus-` to short names.
+- `ResolveArtifactRef` signature simplified: removed the `namePrefix` parameter (no callers use it after the sub-namespace migration).
+- `ResolveToolchainRef` no longer uses `"klaus-"` name prefix.
+
+### Removed
+
+- `FetchManifestAnnotations`, `FetchArtifactInfo` -- no longer needed without annotation-based identification.
+- `WithAnnotations` option for `ListArtifacts` -- annotation fetching removed entirely.
+- `WithPlatform` client option -- only used by the removed manifest annotation path.
+- `ShortToolchainName` -- use `ShortName` instead.
+
+## [0.0.6] - 2026-02-21
+
+### Changed
+
+- `ListRepositories` now uses the catalog `last` parameter to seek past repositories that sort before the target prefix and stops early once past it, avoiding full catalog scans on large registries (921 repos down to 1-2 pages).
+
+## [0.0.3] - 2026-02-18
+
+### Added
+
+- `SplitRegistryBase` helper for parsing registry base paths into host and prefix components.
+
+## [0.0.1] - 2026-02-17
+
+### Added
+
 - Media type constants for plugin and personality artifacts.
 - `PluginReference` type with `Ref()` method for building OCI reference strings.
-- ORAS-based `Client` with typed pull, push, resolve, and list operations.
 - Configurable credential resolution from Docker/Podman configs and environment variables.
 - Digest-based caching to skip redundant pulls.
 - Secure tar.gz extraction with path traversal protection and file size limits.
